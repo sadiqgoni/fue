@@ -33,7 +33,7 @@
 <p style="margin: 1px;text-align: center;text-transform: capitalize">{{$columns->subtitle}}</p>
 <p style="float: right;margin-top: -30px">Month: {{\Illuminate\Support\Carbon::now()->format('F, Y')}}</p>
 @if(!empty($report_col))
-    <table class="table table-bordered table-sm" style="font-size: 12px;width:100%">
+    <table class="table table-bordered table-sm" style="font-size: 16px;width:100%">
 
         <thead>
         <tr>

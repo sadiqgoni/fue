@@ -20,7 +20,7 @@
                         //dd(\App\Models\TemporaryDeduction::where('deduction_id',1)->where('amount','>',1)->count());
                         $deduct_name=\App\Models\Deduction::find($report[0]['deduction_id'])
                     @endphp
-                    @if(\App\Models\TemporaryDeduction::where('deduction_id',$report[0]['deduction_id'])->where('amount','>',1)->count())
+                    @if(count($report) > 0)
                         <p style="margin: 0;padding: 2px;text-transform: capitalize">{{$deduct_name->code}}:{{$deduct_name->deduction_name}}</p>
                         <p style="margin: 0;padding: 2px;text-transform: capitalize">{{$deduct_name->description}}</p>
                         <table border="0" style="width:100%;border-collapse: collapse">
@@ -38,32 +38,26 @@
                                 $total=0;
                             @endphp
                             @forelse($report as $index=>$item)
-                                @php
-
-                                    $emp=\App\Models\EmployeeProfile::where('staff_number',$item->staff_number)->first();
-                                @endphp
-                                @if($item->amount <= 0)
-                                    @continue
-                                @else
+                                @if($item['amount'] > 0)
                                     <tbody>
                                     <tr>
                                         <th>{{$index+1}}</th>
-                                        <td>{{$item->staff_number}}</td>
-                                        <td>{{$emp->payroll_number??null}}</td>
-                                        <td>{{$item->staff_name}}</td>
-                                        <td>{{number_format($item->amount,2)}}</td>
+                                        <td>{{$item['staff_number']}}</td>
+                                        <td>{{$item['staff_number']}}</td>
+                                        <td>{{$item['staff_name']}}</td>
+                                        <td>{{number_format($item['amount'],2)}}</td>
                                     </tr>
                                     </tbody>
+                                    @php
+                                        $total += $item['amount'];
+                                    @endphp
                                 @endif
-                                @php
-                                    $total +=round($report->sum('amount'));
-                                @endphp
                             @empty
                             @endforelse
                             <tfoot>
                             <tr style="border-collapse: collapse;border: 0">
                                 <td colspan="3" style="text-align: right;font-weight: 100;border-collapse: collapse;border: 0">Total</td>
-                                <td colspan="1" style="text-align: right;font-weight: 100;border-collapse: collapse;border: 0">{{number_format($report->sum('amount'),2)}}</td>
+                                <td colspan="1" style="text-align: right;font-weight: 100;border-collapse: collapse;border: 0">{{number_format($total,2)}}</td>
                             </tr>
 
                             </tfoot>

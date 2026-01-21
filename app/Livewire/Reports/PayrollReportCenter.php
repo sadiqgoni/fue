@@ -835,11 +835,15 @@ class PayrollReportCenter extends Component
     public function deduction_schedule()
     {
         ini_set('memory_limit', '2048M');
-        set_time_limit(2000);
+        set_time_limit(2000); // Extended timeout for large datasets
+
+        // Step 1: Clear temporary table
         TemporaryDeduction::query()->truncate();
-        $reports = SalaryHistory::when($this->salary_structure, function ($query,) {
-            return $query->where('salary_structure', ss($this->salary_structure));
-        })
+
+        // Step 2: Query salary history with filters
+        $reports = SalaryHistory::when($this->salary_structure, function ($query) {
+                return $query->where('salary_structure', ss($this->salary_structure));
+            })
             ->when($this->department, function ($query) {
                 return $query->where('department', dept($this->department));
             })
@@ -857,53 +861,71 @@ class PayrollReportCenter extends Component
             })
             ->whereBetween('salary_month', [Carbon::parse($this->date_from)->format('F'), Carbon::parse($this->date_to)->format('F')])
             ->whereBetween('salary_year', [Carbon::parse($this->date_from)->format('Y'), Carbon::parse($this->date_to)->format('Y')])
-//           ->limit('2')
             ->get();
-        if ($reports->count()>0) {
-            $insertion_data = array();
+
+        if ($reports->count() > 0) {
+            $insertion_data = [];
+
+            // Step 3: Process each salary record and extract deductions
             foreach ($reports as $report) {
-                $staff = EmployeeProfile::where('staff_number', $report->pf_number)->first();
-                $deductions = Deduction::get();
-                foreach ($deductions as $index => $deduction) {
-                    $new_data = [
-                        'history_id' => $report->id,
-                        'deduction_id' => $deduction->id,
-                        'staff_number' => $report->pf_number,
-                        'staff_name' => $report->full_name,
-                        'amount' => $report['D' . $deduction->id],
-                    ];
-                    $insertion_data[] = $new_data;
+                $deductions = Deduction::where('status', 1)->get(); // Active deductions only
+
+                foreach ($deductions as $deduction) {
+                    $amount = $report['D' . $deduction->id] ?? 0;
+                    // Only include records with actual deductions to avoid zero-amount entries
+                    if ($amount > 0) {
+                        $new_data = [
+                            'history_id' => $report->id,
+                            'deduction_id' => $deduction->id,
+                            'staff_number' => $report->pf_number,
+                            'staff_name' => $report->full_name,
+                            'amount' => $amount,
+                            'date_month' => Carbon::parse($this->date_from)->format('Y-m-d'),
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ];
+                        $insertion_data[] = $new_data;
+                    }
                 }
             }
-            $insertion_data = collect($insertion_data);
-            $data_to_insert = $insertion_data->chunk(1000);
-            foreach ($data_to_insert as $key => $data) {
+
+            // Step 4: Bulk insert into temporary table for performance
+            $data_to_insert = collect($insertion_data)->chunk(1000);
+            foreach ($data_to_insert as $data) {
                 try {
-                    $data = $data->toArray();
-                    DB::table('temporary_deductions')->insert($data);
+                    DB::table('temporary_deductions')->insert($data->toArray());
                 } catch (\Illuminate\Database\QueryException $e) {
-                    $error = $e->getMessage();
+                    // Log error but continue processing
+                    \Log::error('Deduction schedule insertion error: ' . $e->getMessage());
                     continue;
-//                echo $error;
                 }
             }
-            $this->reports = TemporaryDeduction::
-            when($this->group_by, function ($query) {
-                return $query->where('deduction_id', $this->group_by);
-            })
+
+            // Step 5: Generate the final report grouped by deduction type
+            $groupedData = TemporaryDeduction::
+                when($this->group_by, function ($query) {
+                    return $query->where('deduction_id', $this->group_by);
+                })
                 ->orderBy("$this->order_by", $this->orderAsc)
                 ->get()
-                ->groupBy('deduction_id')->collect();
+                ->groupBy('deduction_id');
 
+            // Convert to the format expected by the view (array of arrays)
+            $this->reports = [];
+            foreach ($groupedData as $deductionId => $records) {
+                $this->reports[] = $records->toArray();
+            }
+
+            // Log activity
             $user = Auth::user();
             $log = new ActivityLog();
             $log->user_id = $user->id;
-            $log->action = "Have generated deduction schedule report";
+            $log->action = "Generated deduction schedule report";
             $log->save();
 
             $this->alert('success', 'Deduction details have been generated successfully');
-        }else{
-            $this->alert('warning',no_record(),['timer'=>9200]);
+        } else {
+            $this->alert('warning', no_record(), ['timer' => 9200]);
         }
     }
     public function deduction_summary()

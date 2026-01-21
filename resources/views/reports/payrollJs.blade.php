@@ -108,7 +108,7 @@
         @endphp
         <thead>
         <tr style="border:0 !important">
-            <td colspan="21" style="padding: 0;border:0 !important;text-align: left;text-transform: capitalize" > <h3 style="font-size: 12px;margin:20px 0 0 0 !important;">
+            <td colspan="21" style="padding: 0;border:0 !important;text-align: left;text-transform: capitalize" > <h3 style="font-size: 24px;margin:20px 0 0 0 !important;">
                     <span style="text-transform: capitalize">  {{$name}}:</span> {{$a}}</h3></td>
         </tr>
         <tr>

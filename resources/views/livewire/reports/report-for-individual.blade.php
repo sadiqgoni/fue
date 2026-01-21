@@ -126,22 +126,20 @@
     <div class="row">
         <div class="col">
             @if($report_type==1)
-                @if(!$payslips ==[])
+                @if(is_array($payslips) ? count($payslips) > 0 : (isset($payslips) && $payslips->count() > 0))
                     @include('livewire.reports.includes.individual_payslip')
                 @endif
-
             @endif
-            @if($report_type==2)
-                    @if(!$banks ==[])
-                        @include('livewire.reports.includes.individual_bank_payment')
-                    @endif
 
+            @if($report_type==2)
+                @if(is_array($banks) ? count($banks) > 0 : (isset($banks) && $banks->count() > 0))
+                    @include('livewire.reports.includes.individual_bank_payment')
+                @endif
             @endif
             @if($report_type==3)
-                @if(!$deductions==[])
-                        @include('livewire.reports.includes.individual_deduction')
-
-                    @endif
+                @if(is_array($deductions) ? count($deductions) > 0 : (!empty($deductions) && isset($deductions) && $deductions->count() > 0))
+                    @include('livewire.reports.includes.individual_deduction')
+                @endif
             @endif
         </div>
     </div>

@@ -77,19 +77,6 @@
             </div>
         </fieldset>
         {{-- Step Indicators --}}
-        @if ($errors->any())
-                                <div class="row">
-                                    <div class="col">
-                                        <div class="alert alert-danger float-right d-inline">
-                                            <ul>
-                                                @foreach ($errors->all() as $error)
-                                                    <li>{{ $error }}</li>
-                                                @endforeach
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endif
         <div class="my-2 flex space-x-2">
             <button style="padding: 3px 5px" wire:click="$set('steps', 1)" class="{{ $steps == 1 ? 'font-bold' : '' }} {{ $steps == 1 ? 'btn-primary text-white' : 'bg-gray-200 text-gray-800' }}">Personal Data</button>
             <button style="padding: 3px 5px" wire:click="$set('steps', 2)" class="{{ $steps == 2 ? 'font-bold' : '' }} {{ $steps == 2 ? 'btn-primary text-white' : 'bg-gray-200 text-gray-800' }}">Employment Data</button>

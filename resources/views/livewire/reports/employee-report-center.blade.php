@@ -206,7 +206,7 @@
 
         <p>Showing total number of <span class="text-primary border">{{$reports->count()}}</span> Staffs</p>
        <div class="table-responsive">
-           <table class="table table-bordered table-sm" style="font-size: 12px">
+           <table class="table table-bordered table-sm" style="font-size: 16px">
 
                <thead>
                <tr>

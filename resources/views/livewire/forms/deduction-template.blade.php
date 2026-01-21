@@ -79,7 +79,7 @@
             <div>
                 <form wire:submit.prevent="update({{$ids}})">
                     <fieldset>
-                        <legend><h6>Update Deduction Template</h6></legend>
+                        <legend><h4>Update Deduction Template</h4></legend>
                         <div class="row">
                             <div class="col-12 col-md-4">
                                 <label for="">Salary Structure @error('salary_structure')   <small class="text-danger">{{$message}}</small> @enderror</label>
@@ -179,7 +179,7 @@ $salObjs=\App\Models\SalaryStructureTemplate::where('salary_structure_id',$this-
                         </div>
                     </div>
                     <fieldset>
-                        <legend><h6>Add Deduction Template</h6></legend>
+                        <legend><h4>Add Deduction Template</h4></legend>
 
                         <div class="row">
                             <div class="col-12 col-md-6">

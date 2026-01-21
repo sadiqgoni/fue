@@ -91,7 +91,7 @@
                     />
                         <form wire:submit.prevent="store">
                             <fieldset>
-                                <legend><h6 class="">Add Faq</h6></legend>
+                                <legend><h4 class="">Add Faq</h4></legend>
                                 @error('title')
                                 <small class="text-danger">{{$message}}</small>
                                 @enderror
@@ -160,7 +160,7 @@
                             />
 
                             <fieldset>
-                                <legend><h6 class="">Update Faq</h6></legend>
+                                <legend><h4 class="">Update Faq</h4></legend>
                                 @error('title')
                                 <small class="text-danger">{{$message}}</small>
                                 @enderror

@@ -47,7 +47,7 @@ $allowance=App\Models\Allowance::all() ;
             <td colspan="2">
                 <h3 style="padding: 0;margin: 0;text-align: center;text-transform: uppercase">{{app_settings()->name}}</h3>
                 <h4 style="padding: 0;margin: 0;text-align: center">{{address()}}</h4>
-                <h5 style="padding: 0;margin: 10px auto; text-align: center;font-size: 12px">Pay Slip Report For the Month of {{$paySlip->salary_month}}, {{$paySlip->salary_year}}</h5>
+                <h5 style="padding: 0;margin: 10px auto; text-align: center;font-size: 24px">Pay Slip Report For the Month of {{$paySlip->salary_month}}, {{$paySlip->salary_year}}</h5>
 
             </td>
         </tr>

@@ -45,6 +45,19 @@
         background-color: #f9fbfc;
         opacity: 1;
     }
+
+    /* Prevent auto-zoom on input focus for mobile devices */
+    @media screen and (max-width: 767px) {
+        input[type="text"],
+        input[type="email"],
+        input[type="number"],
+        input[type="tel"],
+        input[type="password"],
+        select,
+        textarea {
+            font-size: 16px !important;
+        }
+    }
     .record .form-control {
         display: block;
         width: 100%;
@@ -474,7 +487,7 @@
 @media (max-width:920px) {
     .table{
         margin-top: 10px;
-        font-size: 12px;
+        font-size: 14px;
     }
     .create{
         background: dodgerblue !important;

@@ -83,7 +83,7 @@
         @endphp
         <thead>
         <tr style="border:0 !important">
-            <td colspan="21" style="padding: 0;border:0 !important;text-align: left;text-transform: capitalize" > <h3 style="font-size: 12px;margin:20px 0 0 0 !important;">
+            <td colspan="21" style="padding: 0;border:0 !important;text-align: left;text-transform: capitalize" > <h3 style="font-size: 24px;margin:20px 0 0 0 !important;">
                     <span style="text-transform: capitalize">  {{$name}}:</span> {{$a}}</h3></td>
         </tr>
         <tr>
@@ -127,8 +127,8 @@
                 <td>{{number_format($report->A5,2)}} <br> {{number_format($report->A6,2)}}</td>
                 <td>{{number_format($report->A7,2)}} <br> {{number_format($report->A8,2)}}</td>
                 <td>{{number_format($report->A9,2)}}</td>
-                <td>{{number_format($report->D1,2)}} <br> {{number_format($report->D2,2)}}</td>
-                <td>{{number_format($report->D3,2)}} <br> {{number_format($report->D4,2)}}</td>
+                <td>{{number_format($report->D1,2)}} <br> {{number_format($report->D3,2)}}</td>
+                <td>{{number_format($report->D2,2)}} <br> {{number_format($report->D4,2)}}</td>
                 <td>{{number_format($report->D5,2)}} <br> {{number_format($report->D6,2)}}</td>
                 <td>{{number_format($report->D7,2)}} <br> {{number_format($report->D8,2)}}</td>
                 <td>{{number_format($report->D9,2)}} <br> {{number_format($report->D10,2)}}</td>

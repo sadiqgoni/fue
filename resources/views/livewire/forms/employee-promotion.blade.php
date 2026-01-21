@@ -177,7 +177,7 @@
             <div class="col-12 col-md-10 offset-md-1">
                 <form wire:submit.prevent="store">
                     <fieldset>
-                        <legend><h6 class="">Add Staff Promotion</h6></legend>
+                        <legend><h4 class="">Add Staff Promotion</h4></legend>
                         <div class="row">
                             <div class="col-12 col-md-6">
                                 @error('payroll_number')
@@ -300,7 +300,7 @@
             <div class="col-12 col-md-10 offset-md-1">
                 <form wire:submit.prevent="update({{$ids}})">
                     <fieldset>
-                        <legend><h6 class="">Update Staff Promotion</h6></legend>
+                        <legend><h4 class="">Update Staff Promotion</h4></legend>
                         <div class="row">
                             <div class="col-12 col-md-6">
                                 @error('payroll_number')

@@ -141,6 +141,15 @@
                             </div>
 
                         </legend>
+
+                        {{-- Step Indicators --}}
+                        <div class="my-2 flex space-x-2">
+                            <button type="button" style="padding: 3px 5px" wire:click.prevent="setTab(1)" class="{{ $tabs == 1 ? 'font-bold' : '' }} {{ $tabs == 1 ? 'btn-primary text-white' : 'bg-gray-200 text-gray-800' }}">Allowances</button>
+                            <button type="button" style="padding: 3px 5px" wire:click.prevent="setTab(2)" class="{{ $tabs == 2 ? 'font-bold' : '' }} {{ $tabs == 2 ? 'btn-primary text-white' : 'bg-gray-200 text-gray-800' }}">Deductions</button>
+                            <button type="button" style="padding: 3px 5px" wire:click.prevent="setTab(3)" class="{{ $tabs == 3 ? 'font-bold' : '' }} {{ $tabs == 3 ? 'btn-primary text-white' : 'bg-gray-200 text-gray-800' }}">More Deductions</button>
+                            <button type="button" style="padding: 3px 5px" wire:click.prevent="setTab(4)" class="{{ $tabs == 4 ? 'font-bold' : '' }} {{ $tabs == 4 ? 'btn-primary text-white' : 'bg-gray-200 text-gray-800' }}">More Deductions</button>
+                        </div>
+
                         <div class="row">
 
                             <div class="col-12 col-lg-3 col-md-6">
@@ -254,7 +263,7 @@
 
                         <div class="col-12 col-lg-10">
                             <fieldset>
-                                <legend class="py-0"><h6>Salary Info.</h6></legend>
+                                <legend class="py-0"><h4>Salary Info.</h4></legend>
                                 <div class="row">
                                     <div class="col-12 col-md-6 col-lg-6">
 
@@ -384,21 +393,8 @@
 
                         <div class="col-12">
                             <div class="vertical-tas mt-2"  style="overflow-y: auto !important;overflow-x: hidden">
-                                <ul class="nav nav-tabs" role="tablist">
-                                    <li class="nav-item">
-                                        <a wire:ignore class="nav-link active" data-toggle="tab" href="#home-v" role="tab" aria-controls="home">Allowances</a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a wire:ignore class="nav-link" data-toggle="tab" href="#profile-v" role="tab" aria-controls="profile">Deductions</a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a wire:ignore class="nav-link" data-toggle="tab" href="#messages-v" role="tab" aria-controls="messages">More Deductions</a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a wire:ignore class="nav-link" data-toggle="tab" href="#settings-v" role="tab" aria-controls="messages">More Deductions</a>
-                                    </li>
-                                </ul>
                                 <div class="tab-content">
+                                    @if($tabs == 1)
                                     <div wire:ignore.self class="tab-pane active" id="home-v" role="tabpanel">
                                         <div class="sv-tab-pane pt-3">
                                             <div class="row">
@@ -434,8 +430,10 @@
                                         </div>
 
                                     </div>
+                                    @endif
 
-                                    <div wire:ignore.self class="tab-pane" id="profile-v" role="tabpanel">
+                                    @if($tabs == 2)
+                                    <div wire:ignore.self class="tab-pane active" id="profile-v" role="tabpanel">
                                         <div class="row py-4">
 
                                                 @forelse($deduct->take(12) as $deduction)
@@ -464,7 +462,10 @@
 
                                         </div>
                                     </div>
-                                    <div wire:ignore.self class="tab-pane" id="messages-v" role="tabpanel">
+                                    @endif
+
+                                    @if($tabs == 3)
+                                    <div wire:ignore.self class="tab-pane active" id="messages-v" role="tabpanel">
                                         <div class="row py-4">
                                             @forelse($deduct->slice('12') as $deduction)
                                                 @php $field = 'D' . $deduction->id; @endphp
@@ -491,7 +492,10 @@
                                             @endforelse
                                         </div>
                                     </div>
-                                    <div wire:ignore.self class="tab-pane" id="settings-v" role="tabpanel">
+                                    @endif
+
+                                    @if($tabs == 4)
+                                    <div wire:ignore.self class="tab-pane active" id="settings-v" role="tabpanel">
                                         <div class="row py-4">
                                             @forelse($deduct->slice('24') as $deduction)
                                                 @php $field = 'D' . $deduction->id; @endphp
@@ -518,6 +522,7 @@
                                             @endforelse
                                         </div>
                                     </div>
+                                    @endif
                                 </div>
                             </div>
 

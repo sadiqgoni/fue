@@ -23,7 +23,7 @@
 <h3 style="padding: 0;margin: 0;text-align: center;text-transform: uppercase">{{app_settings()->name}}</h3>
 <h4 style="padding: 0;margin: 0;text-align: center">{{address()}}</h4>
 <p style="margin: 10px 1px 1px 1px;text-align: center;text-transform: capitalize">Loan Deduction Report for the month of {{\Illuminate\Support\Carbon::parse($month)->format('F Y')}}</p>
-<table class="table table-sm table-bordered" style="font-size: 12px;border-collapse: collapse;margin-top: 20px">
+<table class="table table-sm table-bordered" style="font-size: 16px;border-collapse: collapse;margin-top: 20px">
     <thead>
     <tr>
         <th>S/N</th>

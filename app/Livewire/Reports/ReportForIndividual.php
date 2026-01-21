@@ -22,9 +22,9 @@ class ReportForIndividual extends Component
     use LivewireAlert;
     public function mount()
     {
-        $this->payslips=[];
-        $this->banks=[];
-        $this->deductions=[];
+        $this->payslips = collect([]);
+        $this->banks = collect([]);
+        $this->deductions = collect([]);
     }
     public function generate()
     {
@@ -45,34 +45,79 @@ class ReportForIndividual extends Component
     }
     public function payslip()
     {
-        $startDate = Carbon::parse ($this->month_from)->format('Y-m-d');
-        $endDate = Carbon::parse($this->month_to)->format('Y-m-d');
-        $this->payslips=SalaryHistory::where('ip_number',$this->payroll_number)
-            ->whereBetween('date_month',[$startDate,$endDate])
-            ->orderBy($this->order_by,$this->order)->get();
-        $this->alert('success','Individual payslip have been generated Successfully');
+        $startMonth = Carbon::parse($this->month_from)->format('F');
+        $endMonth = Carbon::parse($this->month_to)->format('F');
+        $startYear = Carbon::parse($this->month_from)->format('Y');
+        $endYear = Carbon::parse($this->month_to)->format('Y');
+
+        $query = SalaryHistory::where('ip_number', $this->payroll_number)
+            ->whereBetween('salary_month', [$startMonth, $endMonth])
+            ->whereBetween('salary_year', [$startYear, $endYear]);
+
+        // Handle ordering - if ordering by date_month, order by year then month
+        if ($this->order_by === 'date_month') {
+            $query->orderBy('salary_year', $this->order)
+                  ->orderBy('salary_month', $this->order);
+        } else {
+            $query->orderBy($this->order_by, $this->order);
+        }
+
+        $this->payslips = $query->get();
+
+        if ($this->payslips->count() > 0) {
+            $this->alert('success', 'Individual payslip have been generated Successfully');
+        } else {
+            $this->alert('warning', 'No payslip records found for the selected criteria', ['timer' => 5000]);
+        }
     }
     public function bank_pay()
     {
-        $startDate = Carbon::parse ($this->month_from)->format('Y-m-d');
-        $endDate = Carbon::parse($this->month_to)->format('Y-m-d');
-        $this->banks=SalaryHistory::where('ip_number',$this->payroll_number)
-            ->whereBetween('date_month',[$startDate,$endDate])
-            ->orderBy($this->order_by,$this->order)
-            ->get();
-        $this->alert('success','Individual bank payment have been generated Successfully');
+        $startMonth = Carbon::parse($this->month_from)->format('F');
+        $endMonth = Carbon::parse($this->month_to)->format('F');
+        $startYear = Carbon::parse($this->month_from)->format('Y');
+        $endYear = Carbon::parse($this->month_to)->format('Y');
 
+        $query = SalaryHistory::where('ip_number', $this->payroll_number)
+            ->whereBetween('salary_month', [$startMonth, $endMonth])
+            ->whereBetween('salary_year', [$startYear, $endYear]);
+
+        // Handle ordering - if ordering by date_month, order by year then month
+        if ($this->order_by === 'date_month') {
+            $query->orderBy('salary_year', $this->order)
+                  ->orderBy('salary_month', $this->order);
+        } else {
+            $query->orderBy($this->order_by, $this->order);
+        }
+
+        $this->banks = $query->get();
+
+        if ($this->banks->count() > 0) {
+            $this->alert('success', 'Individual bank payment have been generated Successfully');
+        } else {
+            $this->alert('warning', 'No bank payment records found for the selected criteria', ['timer' => 5000]);
+        }
     }
     public function deduction()
     {
+        $startMonth = Carbon::parse($this->month_from)->format('F');
+        $endMonth = Carbon::parse($this->month_to)->format('F');
+        $startYear = Carbon::parse($this->month_from)->format('Y');
+        $endYear = Carbon::parse($this->month_to)->format('Y');
 
-        $startDate = Carbon::parse ($this->month_from)->format('Y-m-d');
-        $endDate = Carbon::parse($this->month_to)->format('Y-m-d');
         TemporaryDeduction::query()->truncate();
-        $reports= SalaryHistory::where('ip_number',$this->payroll_number)
-            ->whereBetween('date_month',[$startDate,$endDate])
-            ->orderBy($this->order_by,$this->order)
-            ->get();
+        $query = SalaryHistory::where('ip_number', $this->payroll_number)
+            ->whereBetween('salary_month', [$startMonth, $endMonth])
+            ->whereBetween('salary_year', [$startYear, $endYear]);
+
+        // Handle ordering - if ordering by date_month, order by year then month
+        if ($this->order_by === 'date_month') {
+            $query->orderBy('salary_year', $this->order)
+                  ->orderBy('salary_month', $this->order);
+        } else {
+            $query->orderBy($this->order_by, $this->order);
+        }
+
+        $reports = $query->get();
         if ($reports->count()>0) {
             $insertion_data = array();
             foreach ($reports as $report) {
@@ -86,8 +131,10 @@ class ReportForIndividual extends Component
                         'deduction_id' => $deduction->id,
                         'staff_number' => $report->ip_number,
                         'staff_name' => $report->full_name,
-                        'date_month' => $report->date_month,
                         'amount' => $report['D' . $deduction->id],
+                        'date_month' => Carbon::parse($report->salary_month . ' ' . $report->salary_year)->format('Y-m-d'),
+                        'created_at' => now(),
+                        'updated_at' => now(),
                     ];
                     $insertion_data[] = $new_data;
                 }

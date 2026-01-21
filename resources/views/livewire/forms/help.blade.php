@@ -95,7 +95,7 @@
                                 x-on:livewire-upload-progress="progress = $event.detail.progress"
                             />
                             <fieldset>
-                                <legend><h6 class="">Add Help Topic</h6></legend>
+                                <legend><h4 class="">Add Help Topic</h4></legend>
                                 @error('topic')
                                 <small class="text-danger">{{$message}}</small>
                                 @enderror
@@ -162,7 +162,7 @@
                                 x-on:livewire-upload-progress="progress = $event.detail.progress"
                             />
                             <fieldset>
-                                <legend><h6 class="">Update Help Topic</h6></legend>
+                                <legend><h4 class="">Update Help Topic</h4></legend>
                                 @error('topic')
                                 <small class="text-danger">{{$message}}</small>
                                 @enderror

@@ -65,7 +65,7 @@
     @php
         $deduct_name=\App\Models\Deduction::find($report[0]['deduction_id']);
     @endphp
-    @if(\App\Models\TemporaryDeduction::where('deduction_id',$report[1]['deduction_id'])->where('amount','>',1)->count())
+    @if(count($report) > 0)
 
         <table border="0" style="width:100%;border-collapse: collapse">
             <thead>
@@ -91,32 +91,27 @@
 $counter=1;
             @endphp
             @forelse($report as $index=>$item)
-                @php
-                    $emp=\App\Models\EmployeeProfile::where('staff_number',$item->staff_number)->first();
-                @endphp
-                @if($item->amount <= 0)
-                    @continue
-                @else
+                @if($item['amount'] > 0)
 
                     <tr>
                         <th>{{$counter}}</th>
-                        <td>{{$item->staff_number}}</td>
-                        <td>{{$emp->payroll_number??null}}</td>
-                        <td>{{$item->staff_name}}</td>
-                        <td>{{number_format($item->amount,2)}}</td>
+                        <td>{{$item['staff_number']}}</td>
+                        <td>{{$item['staff_number']}}</td>
+                        <td>{{$item['staff_name']}}</td>
+                        <td>{{number_format($item['amount'],2)}}</td>
                     </tr>
+                    @php
+                        $total += $item['amount'];
+                        $counter++
+                    @endphp
                 @endif
-                @php
-                    $total +=round($report->sum('amount'));
-$counter++
-                @endphp
             @empty
             @endforelse
             </tbody>
             <div class="page-break"></div>
             <tr style="border-collapse: collapse;border: 0">
                 <td colspan="4" style="text-align: right;font-weight: 100;border-collapse: collapse;border: 0;border-top:1px solid !important;padding-right: 10px ">Total: </td>
-                <td colspan="1" style="font-weight: 100;border-collapse: collapse;border: 0;border-top:1px solid !important;">{{number_format($report->sum('amount'),2)}}</td>
+                <td colspan="1" style="font-weight: 100;border-collapse: collapse;border: 0;border-top:1px solid !important;">{{number_format($total,2)}}</td>
             </tr>
             <tr style="border:0">
                 <td colspan="4" style="border:0">

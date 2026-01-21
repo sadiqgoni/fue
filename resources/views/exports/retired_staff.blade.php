@@ -5,7 +5,7 @@
         <td colspan="8" style="text-align: center">
             <h3 style="padding: 0;margin: 0;text-align: center;text-transform: uppercase">{{app_settings()->name}}</h3>
             <h4 style="padding: 0;margin: 0;text-align: center">{{address()}}</h4>
-            <h5 style="padding: 0;margin: 10px auto; text-align: center;font-size: 12px"> Retirement List </h5>
+            <h5 style="padding: 0;margin: 10px auto; text-align: center;font-size: 24px"> Retirement List </h5>
 
         </td>
     </tr>

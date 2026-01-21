@@ -233,14 +233,8 @@ class EmployeePromotion extends Component
 //                       $basic_salary=$basic_salary;
                        if($deduction->id == 1){
                            $paye=app(DeductionCalculation::class);
-                           $default_paye_calculation=app_settings()->paye_calculation;
-                           $default_statutory_calculation=app_settings()->statutory_deduction;
-                           if ($default_paye_calculation == 2){
-                               $amount= $paye->paye_calculation1($basic_salary,$default_statutory_calculation);
-                           }else{
-                               $amount= $paye->paye_calculation2($basic_salary,$default_statutory_calculation);
-                           }
-
+                           // Use dynamic tax calculation system
+                           $amount = $paye->compute_tax($basic_salary);
                        }
                        else{
 

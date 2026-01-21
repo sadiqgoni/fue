@@ -369,14 +369,19 @@ public $orderBy='id';
         if ($request->order_by !=''){
             $this->orderBy=$request->order_by;
         }
-        $reports_data=TemporaryDeduction::
-        when($request->group_by,function ($query){
-            return $query->where('deduction_id',request()->group_by);
-        })
-
-        ->orderBy("$this->orderBy", $request->order)
+        $groupedData = TemporaryDeduction::
+            when($request->group_by,function ($query){
+                return $query->where('deduction_id',request()->group_by);
+            })
+            ->orderBy("$this->orderBy", $request->order)
             ->get()
             ->groupBy('deduction_id');
+
+        // Convert to the format expected by the views (array of arrays)
+        $reports_data = [];
+        foreach ($groupedData as $deductionId => $records) {
+            $reports_data[] = $records->toArray();
+        }
 
 
         $date_from=$request->date_from;

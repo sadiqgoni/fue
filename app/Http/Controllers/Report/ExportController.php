@@ -147,14 +147,20 @@ class ExportController extends Controller
         if ($this->order_by !=''){
             $this->orderBy=$this->order_by;
         }
-        $reports_data=TemporaryDeduction::
+        $groupedData = TemporaryDeduction::
 //        when($this->group_by,function ($query){
 //            return $query->where('deduction_id',$this->group_by);
 //        })
 
-        orderBy("$this->orderBy", $this->order)
+            orderBy("$this->orderBy", $this->order)
             ->get()
             ->groupBy('deduction_id');
+
+        // Convert to the format expected by the views (array of arrays)
+        $reports_data = [];
+        foreach ($groupedData as $deductionId => $records) {
+            $reports_data[] = $records->toArray();
+        }
 
 
         $date_from=$this->date_from;

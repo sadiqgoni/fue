@@ -132,7 +132,7 @@ $allowance=App\Models\Allowance::all() ;
                 <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
 
                 <td>Pension:  </td>
-                <td style="text-align: right">{{number_format($paySlip->D2,2)}} <sup>@if(array_key_exists('D2',$loan)){{$loan['D2']}}@endif</sup> </td>
+                <td style="text-align: right">{{number_format($paySlip->D3,2)}} <sup>@if(array_key_exists('D3',$loan)){{$loan['D3']}}@endif</sup> </td>
             </tr>
             <tr>
                 <td>Haz Allow:</td>
@@ -140,7 +140,7 @@ $allowance=App\Models\Allowance::all() ;
                 <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
 
                 <td>NHF: </td>
-                <td style="text-align: right">{{number_format($paySlip->D3,2)}} <sup>@if(array_key_exists('D3',$loan)){{$loan['D3']}}@endif</sup> </td>
+                <td style="text-align: right">{{number_format($paySlip->D2,2)}} <sup>@if(array_key_exists('D2',$loan)){{$loan['D2']}}@endif</sup> </td>
             </tr>
             <tr>
                 <td>NM Haz Allow: </td>

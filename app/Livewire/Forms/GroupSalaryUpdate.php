@@ -106,23 +106,34 @@ class GroupSalaryUpdate extends Component
 
             foreach ($employees as $employee) {
                 $salary_update = SalaryUpdate::where('employee_id', $employee->id)->first();
-                if ($this->update_allow_deduct==2 && $this->selected_allow_deduct==1 && $this->paye_calculation !=1){
-
+                if ($this->update_allow_deduct==2 && $this->selected_allow_deduct==1 && $this->paye_calculation == 4){
+                    // Dynamic PAYE calculation
                     $paye=app(DeductionCalculation::class);
-                    if ($this->paye_calculation == 2){
-                        $this->amount=$paye->paye_calculation1($salary_update->basic_salary,$this->statutory_deduction);
-                    }elseif ($this->paye_calculation==3){
-                        $this->amount=$paye->paye_calculation2($salary_update->basic_salary,$this->statutory_deduction);
-                    }
+                    $this->amount = $paye->compute_tax($salary_update->basic_salary);
                     $salary_update["D$this->selected_allow_deduct"] = $this->amount;
                     $salary_update->save();
                 }
+                elseif($this->update_allow_deduct==2 && $this->selected_allow_deduct==1 && $this->paye_calculation == 0){
+                    // Percentage of Basic for PAYE deduction
+                    if ($employee->pfa_name == 10){
+                        $this->amount=0;
+                    }else{
+                        $this->amount=round($salary_update->basic_salary/100 * $this->percentage_of_basic,2);
+                        $salary_update["D$this->selected_allow_deduct"] = $this->amount;
+                        $salary_update->save();
+                    }
+                }
                 elseif(($this->update_allow_deduct==2 || $this->update_allow_deduct==3)){
+                    // Other deductions (allowances or non-PAYE deductions)
                     if ($employee->pfa_name == 10){
                         $this->amount=0;
                     }else{
                         if ($this->percentage_of_basic != ''){
-                            $this->amount=round($salary_update->basic_salary/100 * $this->percentage_of_basic,2);
+                            if ($this->selected_allow_deduct == 5 && $this->update_allow_deduct == 2) {
+                                $this->amount = round($salary_update->gross_pay / 100 * $this->percentage_of_basic);
+                            } else {
+                                $this->amount = round($salary_update->basic_salary / 100 * $this->percentage_of_basic);
+                            }
                         }elseif($this->fixed_amount != ''){
                             $this->amount = $this->fixed_amount;
                         }
@@ -260,6 +271,7 @@ class GroupSalaryUpdate extends Component
 
             foreach ($employees as $employee) {
                 $salary_update = SalaryUpdate::where('employee_id', $employee->id)->first();
+
                 if ($this->percentage_of_basic != '') {
                     if ($this->selected_allow_deduct == 5 && $this->update_allow_deduct == 2) {
                         $this->amount = round($salary_update->gross_pay / 100 * $this->percentage_of_basic);
@@ -268,6 +280,8 @@ class GroupSalaryUpdate extends Component
                     }
                 } elseif ($this->fixed_amount != '') {
                     $this->amount = $this->fixed_amount;
+                } else {
+                    $this->amount = 0;
                 }
 
               if ($this->update_allow_deduct == 1){
@@ -276,12 +290,20 @@ class GroupSalaryUpdate extends Component
                   $salary_update->save();
               }else{
                   //deductions
-                  if ($this->selected_allow_deduct==1 && ($this->paye_calculation ==2 || $this->paye_calculation ==3)){
-                      $paye=app(DeductionCalculation::class);
-                      if ($this->paye_calculation == 2){
-                          $this->amount=$paye->paye_calculation1($salary_update->basic_salary,app_settings()->statutory_deduction);
+                  if ($this->selected_allow_deduct==1 && ($this->paye_calculation ==2 || $this->paye_calculation ==3 || $this->paye_calculation ==4)){
+                      if ($this->paye_calculation == 4){
+                          // Use dynamic tax calculation system
+                          $paye=app(DeductionCalculation::class);
+                          $this->amount = $paye->compute_tax($salary_update->basic_salary);
+                      }
+                      elseif ($this->paye_calculation == 2){
+                          // Legacy Formula 1
+                          $paye=app(DeductionCalculation::class);
+                          $this->amount=$paye->paye_calculation1($salary_update->basic_salary,$this->statutory_deduction);
                       }elseif ($this->paye_calculation==3){
-                          $this->amount=$paye->paye_calculation2($salary_update->basic_salary,app_settings()->statutory_deduction);
+                          // Legacy Formula 2
+                          $paye=app(DeductionCalculation::class);
+                          $this->amount=$paye->paye_calculation2($salary_update->basic_salary,$this->statutory_deduction);
                       }
                   }
                   elseif(($this->selected_allow_deduct==2 || $this->selected_allow_deduct==3)){
@@ -423,7 +445,12 @@ class GroupSalaryUpdate extends Component
         $this->departments=[];
         $this->percentage_of_basic=0;
         $this->statutory_deduction=app_settings()->statutory_deduction;
-        $this->paye_calculation=app_settings()->paye_calculation;
+        $paye_calc = app_settings()->paye_calculation;
+        // Map old options to new dynamic system
+        if ($paye_calc == 2 || $paye_calc == 3) {
+            $paye_calc = 4; // Use dynamic tax calculation
+        }
+        $this->paye_calculation = $paye_calc;
 
     }
     public function updatedUnit(){

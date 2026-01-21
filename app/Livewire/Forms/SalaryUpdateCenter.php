@@ -34,6 +34,7 @@ class SalaryUpdateCenter extends Component
     public $allowances,$deductions,$depts;
     public $ids,$si,$search_employee;
     public $search,$filter_dept,$filter_unit,$filter_type,$perpage=12;
+    public $tabs = 1; // Current active tab
 
     protected $rules=[
             'salary_arears'=>'nullable|regex:/^\d*(\.\d{2})?$/',
@@ -72,7 +73,18 @@ class SalaryUpdateCenter extends Component
             $rules["fields.$field"] = 'required|numeric|regex:/^\d+(\.\d{1,2})?$/';
         }
 
-        $this->validate($rules, $this->customMessages());
+        try {
+            $this->validate($rules, $this->customMessages());
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $firstErrorField = array_key_first($e->validator->errors()->getMessages());
+            $this->tabs = $this->getTabForField($firstErrorField);
+            $firstErrorMessage = $e->validator->errors()->first();
+            $this->alert('error', "Please fix: {$firstErrorMessage}", [
+                'timer' => 5000,
+                'position' => 'top-right'
+            ]);
+            throw $e;
+        }
 
         $this->si=$id;
         $this->alert('warning','Are you sure you want to apply changes?',[
@@ -290,14 +302,8 @@ class SalaryUpdateCenter extends Component
                $basic_salary=$salary->basic_salary;
                if($deduction->id == 1){
                    $paye=app(DeductionCalculation::class);
-                   $default_paye_calculation=app_settings()->paye_calculation;
-                   $default_statutory_calculation=app_settings()->statutory_deduction;
-                   if ($default_paye_calculation == 2){
-                       $amount= $paye->paye_calculation1($basic_salary,$default_statutory_calculation);
-                   }else{
-                       $amount= $paye->paye_calculation2($basic_salary,$default_statutory_calculation);
-                   }
-
+                   // Use dynamic tax calculation system
+                   $amount = $paye->compute_tax($basic_salary);
                }
                else{
                   $emp= $this->employee_info;
@@ -372,9 +378,9 @@ class SalaryUpdateCenter extends Component
             $messages["inputs.$field.regex"]   = "$name must have at most 2 decimal places.";
         }
         foreach ($this->deductionNames as $field => $name) {
-            $messages["deductionInputs.$field.required"] = "$name is required.";
-            $messages["deductionInputs.$field.numeric"] = "$name must be a number.";
-            $messages["deductionInputs.$field.regex"]   = "$name must have at most 2 decimal places.";
+            $messages["fields.$field.required"] = "$name is required.";
+            $messages["fields.$field.numeric"] = "$name must be a number.";
+            $messages["fields.$field.regex"]   = "$name must have at most 2 decimal places.";
         }
         return $messages;
     }
@@ -405,6 +411,44 @@ class SalaryUpdateCenter extends Component
 
         return view('livewire.forms.salary-update-center',compact('employees','salary_structures'))
             ->extends('components.layouts.app');
+    }
+
+    public function getTabForField($field)
+    {
+        // Extract the actual field name (remove 'inputs.' or 'fields.' prefix)
+        $actualField = str_replace(['inputs.', 'fields.'], '', $field);
+
+        // Check if it's an allowance field (starts with 'A')
+        if (str_starts_with($actualField, 'A')) {
+            return 1; // Allowances tab
+        }
+
+        // Check if it's a deduction field (starts with 'D')
+        if (str_starts_with($actualField, 'D')) {
+            $deductionId = (int) str_replace('D', '', $actualField);
+
+            // Basic deductions (D1-D10) go to Deductions tab
+            if ($deductionId <= 10) {
+                return 2; // Deductions tab
+            }
+            // D11-D20 go to More Deductions tab (3rd tab)
+            elseif ($deductionId <= 20) {
+                return 3; // More Deductions tab
+            }
+            // D21+ go to More Deductions tab (4th tab)
+            else {
+                return 4; // More Deductions tab (4th one)
+            }
+        }
+
+        return 1; // Default to Allowances tab
+    }
+
+    public function setTab($tab)
+    {
+        $this->tabs = $tab;
+        // Reset any pending validation to prevent interference
+        $this->resetValidation();
     }
 
 }

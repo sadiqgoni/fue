@@ -392,9 +392,9 @@ use WithFileUploads;
             foreach ($deductions as $deduction)
             {
                    $ld=LoanDeductionCountdown::find($deduction->id);
-                   $lpmy=Carbon::parse($ld->last_pay_month_year)->format('m');
-                   $lm=Carbon::parse($this->salary_month)->format('m');
-                   if ($lm >= $lpmy){
+                   $lastPayDate = Carbon::parse($ld->last_pay_month_year);
+                   $currentSalaryDate = Carbon::parse($this->salary_month);
+                   if ($currentSalaryDate->gte($lastPayDate)){
                        if ($deduction->ded_countdown - 1 >= 0){
                            $deduction->last_pay_month_year=Carbon::parse($this->salary_month)->format('Y-m-d');
                            $deduction->ded_countdown=$deduction->ded_countdown - 1;

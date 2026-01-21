@@ -50,6 +50,8 @@
             'rank',
             'tribe',
             'relationship',
+            'state',
+            'local.govt',
         ];
  $payrollSettingsRoute = [
           'available.allowance',
@@ -58,6 +60,11 @@
             'allowance.template',
             'deduction.template',
             'salary.template',
+            'tax-brackets.index',
+            'tax-brackets.create',
+            'tax-brackets.edit',
+            'tax-brackets.show',
+            'tax-brackets.test',
         ];
  $payrollUpdateRoutes = [
           'salary.update.center',
@@ -131,6 +138,8 @@
                                 <a class="dropdown-item" href="{{route('bank')}}">Banks</a>
                                 <a class="dropdown-item" href="{{route('pfa')}}">PFAs</a>
                                 <a class="dropdown-item" href="{{route('rank')}}">Ranks</a>
+                                <a class="dropdown-item" href="{{route('state')}}">States</a>
+                                <a class="dropdown-item" href="{{route('local.govt')}}">Local Governments</a>
                                 <a class="dropdown-item" href="{{route('tribe')}}">Tribe</a>
                                 <a class="dropdown-item" href="{{route('relationship')}}">Relationship</a>
                             </div>
@@ -165,6 +174,9 @@
                             @endcan
                             @can('salary_template')
                                 <a class="dropdown-item" href="{{route('salary.template')}}">Salary template</a>
+                            @endcan
+                            @can('employee_setting')
+                                <a class="dropdown-item" href="{{route('tax-brackets.index')}}">Tax Brackets</a>
                             @endcan
 
                         </div>
@@ -281,6 +293,8 @@
                                 <a class="dropdown-item" href="{{route('bank')}}">Banks</a>
                                 <a class="dropdown-item" href="{{route('pfa')}}">PFAs</a>
                                 <a class="dropdown-item" href="{{route('rank')}}">Ranks</a>
+                                <a class="dropdown-item" href="{{route('state')}}">States</a>
+                                <a class="dropdown-item" href="{{route('local.govt')}}">Local Governments</a>
                                 <a class="dropdown-item" href="{{route('tribe')}}">Tribe</a>
                                 <a class="dropdown-item" href="{{route('relationship')}}">Relationship</a>
                             </div>
@@ -315,6 +329,9 @@
                             @endcan
                             @can('salary_template')
                                 <a class="dropdown-item" href="{{route('salary.template')}}">Salary template</a>
+                            @endcan
+                            @can('employee_setting')
+                                <a class="dropdown-item" href="{{route('tax-brackets.index')}}">Tax Brackets</a>
                             @endcan
 
                         </div>
@@ -411,7 +428,7 @@
             <div class="col-12 col-md-10" style="background: lightblue">
                 <main class="page-content" style="">
                     <div class="container-fluid">
-                        <h2 class="text-uppercase " style="font-size: 14px;text-align: center;">@yield('page_title')</h2>
+                        <h2 class="text-uppercase " style="font-size: 28px;text-align: center;">@yield('page_title')</h2>
                         <hr>
                         <div class="row">
                             <div class="col-12">
@@ -461,7 +478,7 @@
                 <div class="col-12 col-md-10" style="background: lightblue">
                     <main class="page-content" style="">
                         <div class="container-fluid">
-                            <h2 class="text-uppercase " style="font-size: 14px;text-align: center;">@yield('page_title')</h2>
+                            <h2 class="text-uppercase " style="font-size: 28px;text-align: center;">@yield('page_title')</h2>
                             <hr>
                             <div class="row">
                                 <div class="col-12">

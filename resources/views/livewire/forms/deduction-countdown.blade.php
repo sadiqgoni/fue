@@ -148,7 +148,7 @@
                 </div>
             </div>
             <div class="table-responsive">
-                <table class="table table-sm table-stripped table-bordered mt-2" style="font-size: 12px">
+                <table class="table table-sm table-stripped table-bordered mt-2" style="font-size: 16px">
                     <thead>
                     <tr>
                         <th>SN</th>

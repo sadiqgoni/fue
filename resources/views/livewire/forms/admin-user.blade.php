@@ -93,7 +93,7 @@
             <form wire:submit.prevent="store()">
                 <fieldset>
 
-                    <legend><h6>Add Admin User</h6></legend>
+                    <legend><h4>Add Admin User</h4></legend>
                     <div class="row">
                         <div class="col-12 col-lg-6">
                             <div class="form-group">
@@ -285,7 +285,7 @@
         <div class="">
             <form wire:submit.prevent="update({{$ids}})">
                 <fieldset>
-                    <legend><h6>Add Admin User</h6></legend>
+                    <legend><h4>Add Admin User</h4></legend>
                     <div class="row">
                         <div class="col-12 col-lg-6">
                             <div class="form-group">

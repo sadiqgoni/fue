@@ -24,6 +24,8 @@ use App\Livewire\Forms\SalaryStructure;
 use App\Livewire\Forms\Unit;
 use App\Livewire\Forms\Department;
 use App\Livewire\Forms\Bank;
+use App\Livewire\Forms\State;
+use App\Livewire\Forms\LocalGovt;
 use App\Livewire\Forms\Pfa;
 use App\Livewire\Forms\StaffUnion;
 use App\Livewire\Forms\Rank;
@@ -63,6 +65,7 @@ use App\Http\Controllers\Auth\TwoFactorAuthController;
 
 use App\Http\Controllers\Auth\TwoFASettingsController;
 
+use App\Http\Controllers\TaxBracketController;
 use App\Livewire\Pages\SalaryAnalysisChart;
 
 use App\Livewire\Pages\HelpView;
@@ -120,6 +123,8 @@ Route::middleware(['auth','is_admin','passkey','2fa'])->group(function (){
         Route::get('staff/union',StaffUnion::class)->name('staff.union');
         Route::get('pfa',Pfa::class)->name('pfa');
         Route::get('bank',Bank::class)->name('bank');
+        Route::get('state',State::class)->name('state');
+        Route::get('local/govt',LocalGovt::class)->name('local.govt');
         Route::get('rank',Rank::class)->name('rank');
         Route::get('tribe',Tribe::class)->name('tribe');
         Route::get('relationship',Relationship::class)->name('relationship');
@@ -187,6 +192,19 @@ Route::middleware(['auth','is_admin','passkey','2fa'])->group(function (){
     Route::get('restore/point',RestorePoint::class)->name('restore.point')->middleware('can:restore_point');
     Route::get('salary/analysis',SalaryAnalysisChart::class)->name('salary.analysis');
     Route::get('faq',Question::class)->name('faq');
+
+    // Tax Bracket Management Routes
+    Route::middleware('can:salary_template')->prefix('tax-brackets')->name('tax-brackets.')->group(function () {
+        Route::get('/', [TaxBracketController::class, 'index'])->name('index');
+        Route::get('/create', [TaxBracketController::class, 'create'])->name('create');
+        Route::post('/', [TaxBracketController::class, 'store'])->name('store');
+        Route::get('/{taxBracket}', [TaxBracketController::class, 'show'])->name('show');
+        Route::get('/{taxBracket}/edit', [TaxBracketController::class, 'edit'])->name('edit');
+        Route::put('/{taxBracket}', [TaxBracketController::class, 'update'])->name('update');
+        Route::delete('/{taxBracket}', [TaxBracketController::class, 'destroy'])->name('destroy');
+        Route::post('/{taxBracket}/activate', [TaxBracketController::class, 'activate'])->name('activate');
+        Route::get('/{taxBracket}/test', [TaxBracketController::class, 'testCalculation'])->name('test');
+    });
 
 });
 

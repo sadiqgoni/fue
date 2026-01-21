@@ -91,10 +91,19 @@ class Bank extends Component
         $this->alert('success','Bank have been updated');
 
     }
-//    public function updatedStatus()
-//    {
-//        dd('hy');
-//    }
+    public function status_change($id)
+    {
+        $bank = \App\Models\Bank::find($id);
+        if ($bank->status == 1) {
+            $bank->status = 0;
+            $message = 'Bank discontinued successfully';
+        } else {
+            $bank->status = 1;
+            $message = 'Bank activated successfully';
+        }
+        $bank->save();
+        $this->alert('success', $message);
+    }
 
     public function render()
     {

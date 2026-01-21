@@ -10,7 +10,7 @@
                         </div>
                     </div>
                     <legend >
-                    <h6>Employee Selection</h6>
+                    <h4>Employee Selection</h4>
                     </legend>
                     <div class="row">
                         <div class="col-12 col-lg-4">

@@ -240,7 +240,7 @@ class EmployeeProfile extends Component
             $this->validate($stepRules);
         } catch (\Illuminate\Validation\ValidationException $e) {
             $firstErrorField = array_key_first($e->validator->errors()->getMessages());
-            $this->step = $this->getStepForField($firstErrorField);
+            $this->steps = $this->getStepForField($firstErrorField);
             throw $e;
         }
     }
@@ -353,15 +353,16 @@ class EmployeeProfile extends Component
             $this->ids=$employee->id;
             $this->salary_update();
             DB::commit();
-            $this->reset_field();
             $this->alert('success','New record have been added',[
-                'timer'=>9000
+                'timer'=>3000
             ]);
             $user=Auth::user();
             $log=new ActivityLog();
             $log->user_id=$user->id;
             $log->action="Added an employee with payroll number ($this->payroll_number)";
             $log->save();
+            // Redirect to view mode
+            $this->view_emp($this->ids);
         }catch (\Exception $e)
         {
             DB::rollBack();
@@ -466,13 +467,8 @@ class EmployeeProfile extends Component
                 {
                     if($deduction->id == 1){
                         $paye=app(DeductionCalculation::class);
-                        $default_paye_calculation=app_settings()->paye_calculation;
-                        $default_statutory_calculation=app_settings()->statutory_deduction;
-                        if ($default_paye_calculation == 2){
-                            $amount= $paye->paye_calculation1($basic_salary,$default_statutory_calculation);
-                        }else{
-                            $amount= $paye->paye_calculation2($basic_salary,$default_statutory_calculation);
-                        }
+                        // Use dynamic tax calculation system
+                        $amount = $paye->compute_tax($basic_salary);
 
                     }
                     else{
@@ -553,12 +549,8 @@ class EmployeeProfile extends Component
                     $default_statutory_calculation=app_settings()->statutory_deduction;
                     if($deduction->id == 1){
                         $paye=app(DeductionCalculation::class);
-                        if ($default_paye_calculation == 2){
-                            $amount= $paye->paye_calculation1($basic_salary,$default_statutory_calculation);
-                        }else{
-                            $amount= $paye->paye_calculation2($basic_salary,$default_statutory_calculation);
-                        }
-
+                        // Use dynamic tax calculation system
+                        $amount = $paye->compute_tax($basic_salary);
                     }
                     else{
                         $amount=0.00;
@@ -678,8 +670,18 @@ class EmployeeProfile extends Component
     }
     public function update($id)
     {
-        $this->validate();
-        $this->validateStep();
+        try {
+            $this->validate();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $firstErrorField = array_key_first($e->validator->errors()->getMessages());
+            $this->steps = $this->getStepForField($firstErrorField);
+            $firstErrorMessage = $e->validator->errors()->first();
+            $this->alert('error', "Please fix: {$firstErrorMessage}", [
+                'timer' => 8000,
+                'position' => 'top-right'
+            ]);
+            return; // Don't proceed with update
+        }
 //        if ($this->employment_type==1 || $this->employment_type==3){
 //            $ct=$this->date_of_first_appointment? Carbon::parse($this->date_of_first_appointment)->addYear() : null;
 //        }else{
@@ -746,14 +748,15 @@ class EmployeeProfile extends Component
         }
         $profileObj->save();
         $this->alert('success','Employee record have been Updated',[
-            'timer'=>9000
-//            'progressBarTimer'=>5
+            'timer'=>3000
         ]);
         $user=Auth::user();
         $log=new ActivityLog();
         $log->user_id=$user->id;
         $log->action="Updated employee with payroll number  ($this->payroll_number)";
         $log->save();
+        // Redirect to view mode
+        $this->view_emp($id);
 //        return redirect()->route('employee.profile');
     }
     public function close()
@@ -885,6 +888,8 @@ class EmployeeProfile extends Component
     public function render()
     {
         $salary_structures=SalaryStructure::where('status',1)->get();
+        $this->states=State::where('status',1)->get();
+
 
         $ranks=Rank::where('status',1)->get();
         $categories=StaffCategory::where('status',1)->get();

@@ -18,7 +18,7 @@
 <button class="btn mt-2 create" wire:click.prevent="create_ss()">Add</button>
         </div>
         <div class="table-responsive">
-            <table class="table table-bordered table-sm  mt-2" style="font-size: 13px">
+            <table class="table table-bordered table-sm  mt-2" style="font-size: 18px">
                 <thead>
                 <tr style="text-transform: uppercase">
                     <th>S/N</th>
