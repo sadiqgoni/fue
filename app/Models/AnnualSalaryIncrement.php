@@ -8,4 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 class AnnualSalaryIncrement extends Model
 {
     use HasFactory;
+
+    public function employee()
+    {
+        return $this->belongsTo(EmployeeProfile::class, 'employee_id');
+    }
 }

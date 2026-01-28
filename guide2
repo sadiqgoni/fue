@@ -40,11 +40,8 @@ class AnnualSalaryIncrement extends Component
     public $min_service_months;
     public $specific_employee_ids = [];
     use LivewireAlert;
-    public $action_type = 'increment'; // 'increment' or 'revert'
-    public $revert_preview = [];
-
     protected $rules = [
-        'number_of_increment' => 'required_if:action_type,increment|integer|min:1|max:5',
+        'number_of_increment' => 'required|integer|min:1|max:5',
         'increment_date' => 'required',
         'selection_mode' => 'required',
         'min_service_months' => 'nullable|integer|min:0',
@@ -65,26 +62,13 @@ class AnnualSalaryIncrement extends Component
 
     public function updatePreview()
     {
-        if ($this->action_type == 'increment' && $this->selection_mode == 'criteria' && $this->min_service_months && $this->min_service_months > 0) {
+        if ($this->selection_mode == 'criteria' && $this->min_service_months && $this->min_service_months > 0) {
             $employees = $this->getFilteredEmployees();
-            $this->preview_employees = $employees->take(100);
-            $this->revert_preview = [];
-        } elseif ($this->action_type == 'revert' && $this->increment_date) {
-            // Find increments to revert
-            $this->preview_employees = [];
-            $this->revert_preview = \App\Models\AnnualSalaryIncrement::whereDate('month_year', Carbon::parse($this->increment_date)->format('Y-m-d'))
-                ->when($this->selection_mode == 'specific' && count($this->specific_employee_ids) > 0, function ($q) {
-                    return $q->whereIn('employee_id', $this->specific_employee_ids);
-                })
-                // We could add more filters here if needed, but usually revert is purely time-based or specific person
-                ->with('employee') // Assuming relationship exists, if not we might need to join
-                ->get();
+            $this->preview_employees = $employees->take(100); // Limit preview to 100
         } else {
             $this->preview_employees = [];
-            $this->revert_preview = [];
         }
     }
-
 
     public function getFilteredEmployees()
     {
@@ -136,115 +120,17 @@ class AnnualSalaryIncrement extends Component
     public function confirm()
     {
         $this->validate();
-
-        if ($this->action_type == 'revert') {
-            $count = count($this->revert_preview);
-            if ($count == 0) {
-                $this->alert('warning', 'No increments found to revert for this date/selection.');
-                return;
-            }
-
-            $this->alert('question', "Are you sure you want to REVERT increments for $count employees? This will roll back their salary and step to the previous state.", [
-                'showConfirmButton' => true,
-                'showCancelButton' => true,
-                'onConfirmed' => 'performRevert', // We'll trigger a separate method or handle in confirmed
-                'onDismissed' => 'cancelled',
-                'timer' => 90000,
-                'position' => 'center',
-                'confirmButtonText' => 'Yes, Revert',
-            ]);
-            return;
-        }
-
-        $exists = \App\Models\AnnualSalaryIncrement::where('increment_year', Carbon::parse($this->increment_date)->format('Y'))->get();
-        // ... (existing increment confirm logic)
         $this->alert('question', ' This will increment salaries of the selected employees, do you want to continue?', [
             'showConfirmButton' => true,
             'showCancelButton' => true,
             'onConfirmed' => 'confirmed',
             'onDismissed' => 'cancelled',
             'timer' => 90000,
+            //            'timerProgressBar'=>true,
             'position' => 'center',
             'confirmButtonText' => 'Yes',
         ]);
     }
-
-    // Add listener for performRevert
-    public function getListeners()
-    {
-        return $this->listeners + ['performRevert' => 'performRevert'];
-    }
-
-    public function performRevert()
-    {
-        $this->authorize('can_save');
-        set_time_limit(2000);
-
-        $increments = $this->revert_preview; // cached from preview, or re-fetch to be safe
-        // Re-fetch to be safe
-        $increments = \App\Models\AnnualSalaryIncrement::whereDate('month_year', Carbon::parse($this->increment_date)->format('Y-m-d'))
-            ->when($this->selection_mode == 'specific' && count($this->specific_employee_ids) > 0, function ($q) {
-                return $q->whereIn('employee_id', $this->specific_employee_ids);
-            })
-            ->get();
-
-        $count = 0;
-        foreach ($increments as $inc) {
-            $employee = \App\Models\EmployeeProfile::find($inc->employee_id);
-            if (!$employee)
-                continue;
-
-            // Rollback Step
-            $employee->step = $inc->old_grade_step;
-            $employee->save();
-
-            // Rollback Salary
-            $salary_update = SalaryUpdate::where('employee_id', $employee->id)->first();
-            if ($salary_update) {
-                $basic_salary = $inc->current_salary; // The 'current_salary' in Increment table was the salary BEFORE increment
-                $salary_update->basic_salary = $basic_salary;
-
-                // Recalculate Allowances/Deductions for the OLD salary/step
-                // We use the same logic as increment but with the restored values
-
-                foreach (SalaryAllowanceTemplate::where('salary_structure_id', $employee->salary_structure)
-                    ->whereRaw('? between grade_level_from and grade_level_to', [$employee->grade_level])
-                    ->where('allowance_type', 1)->get() as $allowance) {
-                    $salary_update["A$allowance->allowance_id"] = round($basic_salary / 100 * $allowance->value);
-                }
-
-                foreach (SalaryDeductionTemplate::where('salary_structure_id', $employee->salary_structure)
-                    ->whereRaw('? between grade_level_from and grade_level_to', [$employee->grade_level])
-                    ->where('deduction_type', 1)->get() as $deduction) {
-                    $salary_update["D$deduction->deduction_id"] = round($basic_salary / 100 * $deduction->value);
-                }
-
-                $total_allowance = 0;
-                $total_deduction = 0;
-                foreach (Allowance::all() as $allow) {
-                    $total_allowance += round($salary_update['A' . $allow->id] ?? 0, 2);
-                }
-                foreach (Deduction::all() as $ded) {
-                    $total_deduction += round($salary_update['D' . $ded->id] ?? 0, 2);
-                }
-
-                $total_earning = round($basic_salary + $total_allowance, 2);
-                $salary_update->gross_pay = $total_earning;
-                $salary_update->net_pay = round($total_earning - $total_deduction, 2);
-                $salary_update->total_deduction = $total_deduction;
-                $salary_update->total_allowance = $total_allowance;
-                $salary_update->save();
-            }
-
-            $inc->delete();
-            $count++;
-        }
-
-        $this->alert('success', "Successfully reverted increments for $count employees.", ['timer' => 5000]);
-        $this->revert_preview = []; // clear
-        $this->updated('increment_date'); // refresh
-    }
-
     public function confirmed()
     {
         $this->store();
