@@ -48,11 +48,11 @@ class AnnualSalaryIncrement extends Component
         'increment_date' => 'required',
         'selection_mode' => 'required',
         'min_service_months' => 'nullable|integer|min:0',
-        'specific_employee_ids' => 'required_if:selection_mode,specific|array'
+        'specific_employee_ids' => 'required_if:selection_mode,specific|array',
+        'arrears_months' => 'nullable|numeric|min:0',
     ];
     public $preview_employees = [];
-
-    public $overwrite = false;
+    public $arrears_months;
 
     public function updated($pro)
     {
@@ -284,26 +284,10 @@ class AnnualSalaryIncrement extends Component
                     ->whereDate('month_year', Carbon::parse($this->increment_date)->format('Y-m-d'))
                     ->first();
 
+
                 if ($existingIncrement) {
-                    if ($this->overwrite) {
-                        // Rollback Step
-                        $employee->step = $existingIncrement->old_grade_step;
-                        // Note: We don't save $employee yet, it will be updated and saved in the logic below
-                        // However, for the logic below to calculate correctly (step + increment), we MUST reset it effectively.
-
-                        // Rollback Salary Update to ensure we are modifying from a clean state (optional but safer)
-                        $salary_update = SalaryUpdate::where('employee_id', $employee->id)->first();
-                        if ($salary_update) {
-                            $salary_update->basic_salary = $existingIncrement->current_salary;
-                            $salary_update->save();
-                        }
-
-                        // Delete the blocking record so we can proceed as new
-                        $existingIncrement->delete();
-                    } else {
-                        $skipped++;
-                        continue;
-                    }
+                    $skipped++;
+                    continue;
                 }
 
                 if ($salary_structure != null) {
@@ -342,6 +326,7 @@ class AnnualSalaryIncrement extends Component
                         }
 
                         $old_salary = $salary_update->basic_salary;
+                        $old_gross_pay = $salary_update->gross_pay;
                         $old_grade_step = $employee->step;
 
                         // Safeguard access to array/property
@@ -384,6 +369,18 @@ class AnnualSalaryIncrement extends Component
 
                         $salary_update->gross_pay = $gross_pay;
                         $salary_update->net_pay = $net_pay;
+                        $salary_update->gross_pay = $gross_pay;
+                        $salary_update->net_pay = $net_pay;
+
+                        // Calculate Arrears
+                        if ($this->arrears_months > 0) {
+                            $increment_diff = $gross_pay - $old_gross_pay;
+                            if ($increment_diff > 0) {
+                                $arrears_val = round($increment_diff * $this->arrears_months, 2);
+                                $salary_update->salary_arears = ($salary_update->salary_arears ?? 0) + $arrears_val;
+                            }
+                        }
+
                         $salary_update->save();
 
                         $employee->step = $grade_step;
@@ -401,6 +398,7 @@ class AnnualSalaryIncrement extends Component
                         $incrementObj->status = 1;
                         $incrementObj->current_salary = $old_salary;
                         $incrementObj->new_salary = $basic_salary;
+                        $incrementObj->arrears_months = $this->arrears_months;
                         $incrementObj->save();
 
                         $actual_processed++;
