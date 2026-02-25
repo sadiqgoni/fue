@@ -19,7 +19,7 @@ class UserAccountMail extends Mailable
     public $data;
     public function __construct($data)
     {
-        $this->data=$data;
+        $this->data = $data;
     }
 
     /**
@@ -35,7 +35,7 @@ class UserAccountMail extends Mailable
     /**
      * Get the message content definition.
      */
-//    public function content(): Content
+    //    public function content(): Content
 //    {
 //        return new Content(
 //            markdown: 'mail.userAccountMail',
@@ -46,8 +46,8 @@ class UserAccountMail extends Mailable
         return
             $this->from(config('MAIL_USERNAME'))
                 ->to($this->data)
-                ->subject('FUHSIO Payroll')
-                ->markdown('mail.userAccountMail',['data'=>$this->data]);
+                ->subject('FUE Kano Payroll')
+                ->markdown('mail.userAccountMail', ['data' => $this->data]);
     }
     /**
      * Get the attachments for the message.

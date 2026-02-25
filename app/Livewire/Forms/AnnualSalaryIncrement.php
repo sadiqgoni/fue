@@ -205,7 +205,7 @@ class AnnualSalaryIncrement extends Component
                 $salary_update->basic_salary = $basic_salary;
 
                 // Recalculate Allowances/Deductions for the OLD salary/step
-                // We use the same logic as increment but with the restored values
+                // Only percentage-based ones are updated; fixed ones remain untouched
 
                 foreach (SalaryAllowanceTemplate::where('salary_structure_id', $employee->salary_structure)
                     ->whereRaw('? between grade_level_from and grade_level_to', [$employee->grade_level])
@@ -213,9 +213,14 @@ class AnnualSalaryIncrement extends Component
                     $salary_update["A$allowance->allowance_id"] = round($basic_salary / 100 * $allowance->value);
                 }
 
+                // Always recalculate PAYE (D1)
+                $paye = app(\App\DeductionCalculation::class);
+                $salary_update['D1'] = $paye->compute_tax($basic_salary);
                 foreach (SalaryDeductionTemplate::where('salary_structure_id', $employee->salary_structure)
                     ->whereRaw('? between grade_level_from and grade_level_to', [$employee->grade_level])
-                    ->where('deduction_type', 1)->get() as $deduction) {
+                    ->where('deduction_type', 1)
+                    ->where('deduction_id', '!=', 1)
+                    ->get() as $deduction) {
                     $salary_update["D$deduction->deduction_id"] = round($basic_salary / 100 * $deduction->value);
                 }
 
@@ -337,20 +342,23 @@ class AnnualSalaryIncrement extends Component
 
                         $salary_update->basic_salary = $basic_salary;
 
-                        // Update Allowances
+                        // Update Allowances (percentage-based only; fixed ones are untouched)
                         foreach (SalaryAllowanceTemplate::where('salary_structure_id', $employee->salary_structure)
                             ->whereRaw('? between grade_level_from and grade_level_to', [$employee->grade_level])
                             ->where('allowance_type', 1)->get() as $allowance) {
                             $salary_update["A$allowance->allowance_id"] = round($basic_salary / 100 * $allowance->value);
-                            $salary_update->save();
                         }
 
-                        // Update Deductions
+                        // Update Deductions (percentage-based only; fixed ones are untouched)
+                        // Always recalculate PAYE (D1)
+                        $paye = app(\App\DeductionCalculation::class);
+                        $salary_update['D1'] = $paye->compute_tax($basic_salary);
                         foreach (SalaryDeductionTemplate::where('salary_structure_id', $employee->salary_structure)
                             ->whereRaw('? between grade_level_from and grade_level_to', [$employee->grade_level])
-                            ->where('deduction_type', 1)->get() as $deduction) {
+                            ->where('deduction_type', 1)
+                            ->where('deduction_id', '!=', 1) // PAYE already handled above
+                            ->get() as $deduction) {
                             $salary_update["D$deduction->deduction_id"] = round($basic_salary / 100 * $deduction->value);
-                            $salary_update->save();
                         }
 
                         // Recalculate Totals

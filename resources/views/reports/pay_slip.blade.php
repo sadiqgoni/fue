@@ -55,9 +55,11 @@
         <div id="footer">
             <p class="page">Page </p>
         </div>
-        <?php
+<?php
 $allowance = App\Models\Allowance::all();
-
+$active_allowances = \App\Models\Allowance::where('status', 1)->get();
+$active_deductions = \App\Models\Deduction::where('status', 1)->get();
+$max_count = max($active_allowances->count(), $active_deductions->count());
 ?>
         @forelse($paySlips as $pay)
 
@@ -131,9 +133,6 @@ $allowance = App\Models\Allowance::all();
 
                 <table style="width: 75%;margin-left: 3%;font-size: 13px !important;">
 
-                    @php
-                        $step = \App\Models\EmployeeProfile::where('staff_number', $paySlip->pf_number)->first()->step;
-                    @endphp
 
                     <tbody>
                         <tr>
@@ -145,11 +144,6 @@ $allowance = App\Models\Allowance::all();
 
                             <td colspan="2"><b>Deductions</b></td>
                         </tr>
-                        @php
-                            $active_allowances = \App\Models\Allowance::where('status', 1)->get();
-                            $active_deductions = \App\Models\Deduction::where('status', 1)->get();
-                            $max_count = max($active_allowances->count(), $active_deductions->count());
-                        @endphp
 
                         @for($i = 0; $i < $max_count; $i++)
                             <tr>

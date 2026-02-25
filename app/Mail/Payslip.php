@@ -21,7 +21,7 @@ class Payslip extends Mailable
     public $data;
     public function __construct($data)
     {
-        $this->data=$data;
+        $this->data = $data;
     }
 
     /**
@@ -30,7 +30,7 @@ class Payslip extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'FUHSIO Payroll for '.Carbon::parse($this->data['month_from'])->format('F,Y'),
+            subject: 'FUE Kano Payroll for ' . Carbon::parse($this->data['month_from'])->format('F,Y'),
         );
     }
 
@@ -39,16 +39,16 @@ class Payslip extends Mailable
      */
     public function build()
     {
-//        return new Content(
+        //        return new Content(
 //            markdown: 'mail.payslip',
 //        );
 //        dd('hy');
-        $employee=EmployeeProfile::where('payroll_number',$this->data['payroll_number'])->first();
+        $employee = EmployeeProfile::where('payroll_number', $this->data['payroll_number'])->first();
         return
             $this->from(config('MAIL_USERNAME'))
                 ->to($employee->email)
-                ->subject('FUHSIO Payroll')
-                ->markdown('mail.payslip',['data'=>$this->data,'employee'=>$employee]);
+                ->subject('FUE Kano Payroll')
+                ->markdown('mail.payslip', ['data' => $this->data, 'employee' => $employee]);
     }
 
     /**

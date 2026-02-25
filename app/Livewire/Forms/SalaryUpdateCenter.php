@@ -193,11 +193,10 @@ class SalaryUpdateCenter extends Component
 
         if ($this->salary->D5 > 0) {
             $sd = round(($this->salary->D5 / $this->salary->gross_pay) * 100, 2);
-
+            $this->salary_deduction = 100 - $sd;
         } else {
-            $sd = 0;
+            $this->salary_deduction = 100; // 100% paid by default
         }
-        $this->salary_deduction = $sd;
         try {
             $this->salary_arears = $this->salary->salary_arears;
 
@@ -224,10 +223,7 @@ class SalaryUpdateCenter extends Component
     }
     public function updatedFields($value, $key)
     {
-        if ($key === 'D5') {
-            $this->updatedSalaryDeduction();
-            return;
-        }
+        // D5 validation works normally now, allowing fixed amounts without triggering the percentage recalculation.
         $this->validateOnly("fields.$key", [
             "fields.$key" => 'required|numeric|regex:/^\d+(\.\d{1,2})?$/',
         ], $this->customMessages());
@@ -237,6 +233,23 @@ class SalaryUpdateCenter extends Component
 
     public function updatedSalaryDeduction()
     {
+        if ($this->salary_deduction == '' || $this->salary_deduction == 100) {
+            // Reset to default (no deduction)
+            if (array_key_exists('D5', $this->fields)) {
+                $this->fields['D5'] = 0.00;
+            }
+            if (array_key_exists('D1', $this->fields)) {
+                $this->fields['D1'] = number_format($this->salary->D1, 2, '.', '');
+            }
+            if (array_key_exists('D2', $this->fields)) {
+                $this->fields['D2'] = number_format($this->salary->D2, 2, '.', '');
+            }
+            if (array_key_exists('D3', $this->fields)) {
+                $this->fields['D3'] = number_format($this->salary->D3, 2, '.', '');
+            }
+            return;
+        }
+
         $this->validate(
             [
                 'salary_deduction' => ['regex:/^\d{1,2}(\.\d{1,2})?$|^100(\.00?)?$/'],
@@ -246,13 +259,26 @@ class SalaryUpdateCenter extends Component
             ]
         );
         $total_earning = round($this->salary->basic_salary + $this->salary->total_allowance + $this->salary_arears, 2);
-        //        $sal_de=round($total_earning/100 *  $this->salary_deduction,2);
+
+        $percent_to_pay = floatval($this->salary_deduction);
+        $percent_to_deduct = 100 - $percent_to_pay;
+
         if (array_key_exists('D5', $this->fields)) {
-            $value = ($total_earning / 100) * $this->salary_deduction;
+            $value = ($total_earning / 100) * $percent_to_deduct;
             $this->fields['D5'] = number_format($value, 2, '.', '');
         }
 
-
+        // Apply scale to PAYE and Pension
+        $scale = $percent_to_pay / 100;
+        if (array_key_exists('D1', $this->fields)) {
+            $this->fields['D1'] = number_format($this->salary->D1 * $scale, 2, '.', '');
+        }
+        if (array_key_exists('D2', $this->fields)) {
+            $this->fields['D2'] = number_format($this->salary->D2 * $scale, 2, '.', '');
+        }
+        if (array_key_exists('D3', $this->fields)) {
+            $this->fields['D3'] = number_format($this->salary->D3 * $scale, 2, '.', '');
+        }
     }
 
     public function searchEmployee()

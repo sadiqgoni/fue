@@ -225,67 +225,78 @@ class EmployeePromotion extends Component
                         $total_allow = 0;
                         foreach ($a as $key => $allow) {
                             if ($allow->allowance_type == 1) {
+                                // Percentage-based: recalculate against new basic salary
                                 $amount = round($basic_salary / 100 * $allow->value, 2);
+                                $salary_update["A$allow->allowance_id"] = $amount;
                             } else {
-                                $amount = $allow->value;
+                                // Fixed allowance (e.g. Responsibility Allowance): DO NOT change it
+                                $amount = $salary_update["A$allow->allowance_id"] ?? $allow->value;
                             }
-                            $salary_update["A$allow->allowance_id"] = $amount;
                             $total_allow += round($amount, 2);
-                            $salary_update->save();
                         }
                         //deduction
                         $total_deduct = 0;
                         foreach (Deduction::where('status', 1)->get() as $deduction) {
-                            //                       $basic_salary=$basic_salary;
                             if ($deduction->id == 1) {
+                                // PAYE is always recalculated
                                 $paye = app(DeductionCalculation::class);
-                                // Use dynamic tax calculation system
                                 $amount = $paye->compute_tax($basic_salary);
+                                $salary_update["D$deduction->id"] = $amount;
                             } else {
-
                                 $dedTemp = SalaryDeductionTemplate::where('salary_structure_id', $promotion->salary_structure)
                                     ->whereRaw('? between grade_level_from and grade_level_to', [$promotion->level])
                                     ->where('deduction_id', $deduction->id)->first();
-                                //check if percentage of basic
+
                                 if (!is_null($dedTemp)) {
                                     if ($dedTemp->deduction_type == 1) {
+                                        // Percentage-based: recalculate
                                         $amount = round($basic_salary / 100 * $dedTemp->value, 2);
+                                        // Check pension
+                                        if ($dedTemp->deduction_id == 2 || $dedTemp->deduction_id == 3) {
+                                            if ($employee->pfa_name == 10) {
+                                                $amount = 0.00;
+                                            }
+                                        }
+                                        // Check union
+                                        elseif (UnionDeduction::where('deduction_id', $dedTemp->deduction_id)->exists()) {
+                                            if (!UnionDeduction::where('deduction_id', $dedTemp->deduction_id)->where('union_id', $employee->staff_union)->exists()) {
+                                                $amount = 0.00;
+                                            }
+                                        }
+                                        $salary_update["D$deduction->id"] = $amount;
                                     } else {
-                                        $amount = $dedTemp->value;
-                                    }
-                                    //check if employee has pension
-                                    if ($dedTemp->deduction_id == 2 || $dedTemp->deduction_id == 3) {
-                                        if ($employee->pfa_name == 10) {
-                                            $amount = 0.00;
-                                        }
-                                    }
-                                    //check union
-                                    elseif (UnionDeduction::where('deduction_id', $dedTemp->deduction_id)->get()->count() > 0) {
-                                        if (UnionDeduction::where('deduction_id', $dedTemp->deduction_id)->where('union_id', $this->staff_union)->get()->count() > 0) {
-                                            $amount = $amount;
-                                        } else {
-                                            $amount = 0.00;
-                                        }
+                                        // Fixed deduction in template: preserve existing employee value, don't overwrite
+                                        $amount = $salary_update["D$deduction->id"] ?? 0;
                                     }
                                 } else {
-                                    $amount = $salary["D$deduction->id"];
+                                    // Deduction not in template: preserve existing employee value
+                                    $amount = $salary_update["D$deduction->id"] ?? 0;
                                 }
                             }
-                            $salary_update["D$deduction->id"] = $amount;
-                            $total_deduct += round($amount, 2);
-                            $salary->save();
+                            $total_deduct += round($salary_update["D$deduction->id"] ?? 0, 2);
                         }
+                        $salary_update->save();
 
                         $employee->grade_level = $promotion->level;
                         $employee->step = $promotion->step;
                         $employee->salary_structure = $promotion->salary_structure;
                         $employee->save();
-                        $salary_update->basic_salary = $basic_salary;
-                        $salary_update->total_allowance = $total_allow;
-                        $salary_update->total_deduction = $total_deduct;
+                        // Recalculate totals from ALL allowances/deductions in the record
+                        // (not just template ones — fixed allowances like Responsibility must be included)
+                        $total_allow = 0;
+                        foreach (\App\Models\Allowance::all() as $allowance) {
+                            $total_allow += round($salary_update['A' . $allowance->id] ?? 0, 2);
+                        }
+                        $total_deduct = 0;
+                        foreach (Deduction::where('status', 1)->get() as $deduction) {
+                            $total_deduct += round($salary_update['D' . $deduction->id] ?? 0, 2);
+                        }
                         $total_earning = round($basic_salary + $total_allow, 2);
                         $gross_pay = $total_earning;
                         $net_pay = round($gross_pay - $total_deduct, 2);
+                        $salary_update->basic_salary = $basic_salary;
+                        $salary_update->total_allowance = $total_allow;
+                        $salary_update->total_deduction = $total_deduct;
                         $salary_update->gross_pay = $gross_pay;
                         $salary_update->net_pay = $net_pay;
 

@@ -20,7 +20,7 @@ class PasskeyMail extends Mailable
     public $data;
     public function __construct($data)
     {
-        $this->data=$data;
+        $this->data = $data;
     }
 
     /**
@@ -38,8 +38,8 @@ class PasskeyMail extends Mailable
         return
             $this->from(config('MAIL_USERNAME'))
                 ->to(Auth::user()->email)
-                ->subject('FUHSIO Payroll')
-                ->markdown('mail.passkeymail',['data'=>$this->data]);
+                ->subject('FUE Kano Payroll')
+                ->markdown('mail.passkeymail', ['data' => $this->data]);
     }
 
     /**
