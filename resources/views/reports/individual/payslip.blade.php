@@ -59,18 +59,19 @@ $allowance = App\Models\Allowance::all();
 
     @forelse($payslips as $paySlip)
 
-        <table style="width: 100%;text-align: center">
+        <table style="width: 100%;">
             <tr>
-                <td> <img src="{{public_path('storage/' . app_settings()->logo)}}" alt=""
-                        style="width: 35px;position: relative;left: 130px"></td>
-                <td colspan="2">
-                    <h3 style="padding: 0;margin: 0;text-align: center;text-transform: uppercase">{{app_settings()->name}}
-                    </h3>
-                    <h4 style="padding: 0;margin: 0;text-align: center">{{address()}}</h4>
-                    <h5 style="padding: 0;margin: 10px auto; text-align: center;font-size: 24px">Pay Slip Report For the
-                        Month of {{$paySlip->salary_month}}, {{$paySlip->salary_year}}</h5>
-
+                <td style="width: 20%; text-align: right; vertical-align: middle;">
+                    <img src="{{public_path('storage/' . app_settings()->logo)}}" alt="" style="width: 60px; height: auto;">
                 </td>
+                <td style="width: 60%; text-align: center; vertical-align: middle;">
+                    <h3 style="padding: 0;margin: 0;text-transform: uppercase; font-size: 16px;">{{app_settings()->name}}
+                    </h3>
+                    <h4 style="padding: 0;margin: 4px 0; font-size: 13px; font-weight: normal;">{{address()}}</h4>
+                    <h5 style="padding: 0;margin: 8px 0; font-size: 14px;">Pay Slip Report For the Month of
+                        {{$paySlip->salary_month}}, {{$paySlip->salary_year}}</h5>
+                </td>
+                <td style="width: 20%;"></td>
             </tr>
         </table>
         {{-- @if($loop->iteration %2 ==0)--}}
@@ -88,7 +89,7 @@ $allowance = App\Models\Allowance::all();
         foreach ($sorts as $sort) {
             $loan[\Illuminate\Support\Str::before($sort, $search)] = "(" . \Illuminate\Support\Str::after($sort, '(');
         }
-        ?>
+            ?>
         <table style="margin:1px auto; width: 65%">
             <tr>
                 <td><span>Name: {{$paySlip->full_name}}</span></td>
