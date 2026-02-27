@@ -26,14 +26,14 @@ $allowance = App\Models\Allowance::all();
     <table style="font-weight:bolder;margin:30px 9px 9px 9px ;width: 100%">
         <thead>
         <tr>
-            <td style="max-width: 60px !important;"><img src="{{public_path('storage/' . app_settings()->logo)}}" alt="" style="width: 70px;position: relative;"></td>
-            <td style="text-align: left;padding: 0 !important;">
+            <td style="width: 100px !important; text-align: center;"><img src="{{public_path('storage/' . app_settings()->logo)}}" alt="" style="width: 70px; height: auto;"></td>
+            <td style="text-align: center;padding: 0 !important; vertical-align: middle;">
 
-                <p style="padding: 0 !important;text-align: center;margin: 0">{{app_settings()->name}}</p>
-                <p style="padding: 0 !important;text-align: center;margin: 0">{{address()}}</p>
-                <p style="padding: 0 !important;text-align: center;">Employee Pay Slip for the Month of {{$paySlip->salary_month}}, {{$paySlip->salary_year}}</p>
+                <h3 style="padding: 0 !important;margin: 0; font-size: 16px;">{{app_settings()->name}}</h3>
+                <p style="padding: 0 !important;margin: 0; font-size: 13px; font-weight: normal;">{{address()}}</p>
+                <p style="padding: 0 !important;margin: 0; font-size: 13px; font-weight: normal;">Employee Pay Slip for the Month of {{$paySlip->salary_month}}, {{$paySlip->salary_year}}</p>
             </td>
-            <td style="width: 60px !important;">&nbsp;</td>
+            <td style="width: 100px !important;">&nbsp;</td>
         </tr>
         {{--           <tr>--}}
         {{--               <td rowspan="3" style="max-width: 60px !important;"> <img src="{{public_path('storage/'.app_settings()->logo)}}" alt="" style="width: 70px;position: relative;"></td>--}}
@@ -48,9 +48,6 @@ $allowance = App\Models\Allowance::all();
         </thead>
 
     </table>
-    <table style="margin: auto;width: 95%">
-
-
 
     <table   style="width: 75%;margin-left: 3%;font-size: 13px !important;" >
 
