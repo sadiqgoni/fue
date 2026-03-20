@@ -9,6 +9,9 @@ use Illuminate\Database\Seeder;
 
 class TaxBracketSeeder extends Seeder
 {
+    /**
+     * Run the database seeds.
+     */
     public function run(): void
     {
         // Clear existing tax brackets

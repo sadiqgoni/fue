@@ -19,11 +19,13 @@
                             <div class="btn-group btn-group-toggle w-100">
                                 <label class="btn btn-outline-primary {{ $action_type == 'increment' ? 'active' : '' }}"
                                     wire:click="$set('action_type', 'increment'); $set('revert_preview', []);">
-                                    <input type="radio" name="action_type" value="increment" autocomplete="off" {{ $action_type == 'increment' ? 'checked' : '' }}> Apply Increment
+                                    <input type="radio" name="action_type" value="increment" autocomplete="off" {{
+    $action_type == 'increment' ? 'checked' : '' }}> Apply Increment
                                 </label>
                                 <label class="btn btn-outline-danger {{ $action_type == 'revert' ? 'active' : '' }}"
                                     wire:click="$set('action_type', 'revert'); $set('preview_employees', []);">
-                                    <input type="radio" name="action_type" value="revert" autocomplete="off" {{ $action_type == 'revert' ? 'checked' : '' }}> Revert / Rollback
+                                    <input type="radio" name="action_type" value="revert" autocomplete="off" {{
+    $action_type == 'revert' ? 'checked' : '' }}> Revert / Rollback
                                 </label>
                             </div>
                         </div>
@@ -148,8 +150,6 @@
                                         <option value="5">Retired</option>
                                         <option value="6">Leave of Absence</option>
                                         <option value="7">Secondment</option>
-                                        {{-- <option value="8">Visiting Lecturers</option>--}}
-                                        {{-- <option value="9">Part-timers</option>--}}
                                     </select>
                                     <div class="input-group-append"></div>
                                 </div>
@@ -194,7 +194,7 @@
                                                                                         <td>{{ $emp->full_name }} <small class="text-muted">({{
                                                         $emp->staff_number }})</small></td>
                                                                                         <td>{{ \Carbon\Carbon::parse($emp->date_of_first_appointment)->format('d
-                                                                                                                                                                                                                                                                                                    M, Y') }}
+                                                                                                                                                                            M, Y') }}
                                                                                         </td>
                                                                                         <td>{{ $emp->service_months_diff ?? 'N/A' }} months</td>
                                                                                         <td>Level {{ $emp->grade_level }} / Step {{ $emp->step }}</td>
@@ -232,8 +232,8 @@
                                                     <tr>
                                                         <td>
                                                             {{ $inc->employee->full_name ?? 'Unknown' }}
-                                                            <small
-                                                                class="text-muted">({{ $inc->employee->staff_number ?? '-' }})</small>
+                                                            <small class="text-muted">({{ $inc->employee->staff_number ?? '-'
+                                                                                }})</small>
                                                         </td>
                                                         <td>{{ \Carbon\Carbon::parse($inc->month_year)->format('M Y') }}</td>
                                                         <td>
@@ -305,10 +305,10 @@
                                                                                                     <div class="d-flex flex-column" style="line-height: 1.2;">
                                                                                                         <span class="font-weight-bold text-dark"
                                                                                                             style="font-size: 0.85rem;">{{ $emp->full_name
-                                                                                                                                                                                                                                                                                                                    }}</span>
+                                                                                                                                                                                            }}</span>
                                                                                                         <small
                                                                                                             class="text-muted">{{ $emp->staff_number
-                                                                                                                                                                                                                                                                                                                    }}</small>
+                                                                                                                                                                                            }}</small>
                                                                                                     </div>
                                                                                                 </label>
                                                                                             @endforeach
@@ -331,24 +331,26 @@
                     @endif
 
                     <div class="row">
-                        <div class="col-12 col-md-6">
-                            <label for="">Please increment salaries of selected staff byStep<sub>(s)</sub></label>
-                            @error('number_of_increment')
-                                <strong class="text-danger d-block form-text">{{$message}}</strong>
-                            @enderror
-                            <input type="number" class="form-control @error('number_of_increment') is-invalid @enderror"
-                                wire:model.blur="number_of_increment" name="increment">
-
-                        </div>
-                        <div class="col-12 col-md-6">
+                        <div class="col">
                             <label for="">Arrears (Months)</label>
                             @error('arrears_months')
                                 <strong class="text-danger d-block form-text">{{$message}}</strong>
                             @enderror
-                            <input type="number" class="form-control @error('arrears_months') is-invalid @enderror"
-                                wire:model.blur="arrears_months" min="0">
+                            <input type="number" class="form-control-sm @error('arrears_months') is-invalid @enderror"
+                                wire:model.blur="arrears_months" name="arrears_months" min="0">
+                        </div>
+                        <div class="col">
+                            <label for="">Please increment salaries of selected staff by</label>
+                            @error('number_of_increment')
+                                <strong class="text-danger d-block form-text">{{$message}}</strong>
+                            @enderror
+                            <input type="number"
+                                class="form-control-sm @error('number_of_increment') is-invalid @enderror"
+                                wire:model.blur="number_of_increment" name="increment">
+                            <label for="">Step<sub>(s)</sub></label>
                         </div>
                     </div>
+
 
                 </fieldset>
                 @can('can_save')
@@ -358,7 +360,6 @@
                         {{ $action_type == 'revert' ? 'Revert Increments' : 'Apply Increment' }}
                     </button>
                 @endcan
-
             </form>
 
 

@@ -13,6 +13,7 @@ use App\Models\SalaryStructure;
 use App\Models\SalaryStructureTemplate;
 use App\Models\SalaryUpdate;
 use App\Models\StaffCategory;
+use App\Models\StepAllowanceTemplate;
 use App\Models\Unit;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -39,6 +40,7 @@ class AnnualSalaryIncrement extends Component
     public $selection_mode = 'criteria'; // 'criteria' or 'specific'
     public $min_service_months;
     public $specific_employee_ids = [];
+    public $arrears_months;
     use LivewireAlert;
     public $action_type = 'increment'; // 'increment' or 'revert'
     public $revert_preview = [];
@@ -49,16 +51,16 @@ class AnnualSalaryIncrement extends Component
         'selection_mode' => 'required',
         'min_service_months' => 'nullable|integer|min:0',
         'specific_employee_ids' => 'required_if:selection_mode,specific|array',
-        'arrears_months' => 'nullable|numeric|min:0',
+        'arrears_months' => 'nullable|numeric|min:0'
     ];
     public $preview_employees = [];
-    public $arrears_months;
+
 
     public function updated($pro)
     {
         $this->validateOnly($pro);
 
-        if (in_array($pro, ['min_service_months', 'increment_date', 'salary_structure', 'grade_level_from', 'grade_level_to', 'employee_type', 'staff_category', 'status', 'unit', 'department'])) {
+        if (in_array($pro, ['min_service_months', 'increment_date', 'salary_structure', 'grade_level_from', 'grade_level_to', 'employee_type', 'staff_category', 'status', 'unit', 'department', 'action_type'])) {
             $this->updatePreview();
         }
     }
@@ -67,7 +69,7 @@ class AnnualSalaryIncrement extends Component
     {
         if ($this->action_type == 'increment' && $this->selection_mode == 'criteria' && $this->min_service_months && $this->min_service_months > 0) {
             $employees = $this->getFilteredEmployees();
-            $this->preview_employees = $employees->take(100);
+            $this->preview_employees = $employees->take(100); // Limit preview to 100
             $this->revert_preview = [];
         } elseif ($this->action_type == 'revert' && $this->increment_date) {
             // Find increments to revert
@@ -76,15 +78,13 @@ class AnnualSalaryIncrement extends Component
                 ->when($this->selection_mode == 'specific' && count($this->specific_employee_ids) > 0, function ($q) {
                     return $q->whereIn('employee_id', $this->specific_employee_ids);
                 })
-                // We could add more filters here if needed, but usually revert is purely time-based or specific person
-                ->with('employee') // Assuming relationship exists, if not we might need to join
+                ->with('employee')
                 ->get();
         } else {
             $this->preview_employees = [];
             $this->revert_preview = [];
         }
     }
-
 
     public function getFilteredEmployees()
     {
@@ -133,6 +133,12 @@ class AnnualSalaryIncrement extends Component
     }
 
     protected $listeners = ['confirmed', 'canceled'];
+
+    public function getListeners()
+    {
+        return $this->listeners + ['performRevert' => 'performRevert'];
+    }
+
     public function confirm()
     {
         $this->validate();
@@ -157,22 +163,17 @@ class AnnualSalaryIncrement extends Component
         }
 
         $exists = \App\Models\AnnualSalaryIncrement::where('increment_year', Carbon::parse($this->increment_date)->format('Y'))->get();
-        // ... (existing increment confirm logic)
+
         $this->alert('question', ' This will increment salaries of the selected employees, do you want to continue?', [
             'showConfirmButton' => true,
             'showCancelButton' => true,
             'onConfirmed' => 'confirmed',
             'onDismissed' => 'cancelled',
             'timer' => 90000,
+            //            'timerProgressBar'=>true,
             'position' => 'center',
             'confirmButtonText' => 'Yes',
         ]);
-    }
-
-    // Add listener for performRevert
-    public function getListeners()
-    {
-        return $this->listeners + ['performRevert' => 'performRevert'];
     }
 
     public function performRevert()
@@ -180,8 +181,6 @@ class AnnualSalaryIncrement extends Component
         $this->authorize('can_save');
         set_time_limit(2000);
 
-        $increments = $this->revert_preview; // cached from preview, or re-fetch to be safe
-        // Re-fetch to be safe
         $increments = \App\Models\AnnualSalaryIncrement::whereDate('month_year', Carbon::parse($this->increment_date)->format('Y-m-d'))
             ->when($this->selection_mode == 'specific' && count($this->specific_employee_ids) > 0, function ($q) {
                 return $q->whereIn('employee_id', $this->specific_employee_ids);
@@ -203,24 +202,25 @@ class AnnualSalaryIncrement extends Component
             if ($salary_update) {
                 $basic_salary = $inc->current_salary; // The 'current_salary' in Increment table was the salary BEFORE increment
                 $salary_update->basic_salary = $basic_salary;
+                $stepAllowances = StepAllowanceTemplate::where('salary_structure_id', $employee->salary_structure)
+                    ->where('grade_level', $employee->grade_level)
+                    ->where('step', $inc->old_grade_step)
+                    ->get()
+                    ->keyBy('allowance_id');
 
                 // Recalculate Allowances/Deductions for the OLD salary/step
-                // Only percentage-based ones are updated; fixed ones remain untouched
-
                 foreach (SalaryAllowanceTemplate::where('salary_structure_id', $employee->salary_structure)
                     ->whereRaw('? between grade_level_from and grade_level_to', [$employee->grade_level])
                     ->where('allowance_type', 1)->get() as $allowance) {
-                    $salary_update["A$allowance->allowance_id"] = round($basic_salary / 100 * $allowance->value);
+                    $amount = isset($stepAllowances[$allowance->allowance_id])
+                        ? $stepAllowances[$allowance->allowance_id]->value
+                        : round($basic_salary / 100 * $allowance->value);
+                    $salary_update["A$allowance->allowance_id"] = $amount;
                 }
 
-                // Always recalculate PAYE (D1)
-                $paye = app(\App\DeductionCalculation::class);
-                $salary_update['D1'] = $paye->compute_tax($basic_salary);
                 foreach (SalaryDeductionTemplate::where('salary_structure_id', $employee->salary_structure)
                     ->whereRaw('? between grade_level_from and grade_level_to', [$employee->grade_level])
-                    ->where('deduction_type', 1)
-                    ->where('deduction_id', '!=', 1)
-                    ->get() as $deduction) {
+                    ->where('deduction_type', 1)->get() as $deduction) {
                     $salary_update["D$deduction->deduction_id"] = round($basic_salary / 100 * $deduction->value);
                 }
 
@@ -289,7 +289,6 @@ class AnnualSalaryIncrement extends Component
                     ->whereDate('month_year', Carbon::parse($this->increment_date)->format('Y-m-d'))
                     ->first();
 
-
                 if ($existingIncrement) {
                     $skipped++;
                     continue;
@@ -331,7 +330,7 @@ class AnnualSalaryIncrement extends Component
                         }
 
                         $old_salary = $salary_update->basic_salary;
-                        $old_gross_pay = $salary_update->gross_pay;
+                        $old_gross_pay = $salary_update->gross_pay; // Capture old gross pay
                         $old_grade_step = $employee->step;
 
                         // Safeguard access to array/property
@@ -341,24 +340,29 @@ class AnnualSalaryIncrement extends Component
                         $basic_salary = round($annual_salary / 12, 2);
 
                         $salary_update->basic_salary = $basic_salary;
+                        $stepAllowances = StepAllowanceTemplate::where('salary_structure_id', $employee->salary_structure)
+                            ->where('grade_level', $employee->grade_level)
+                            ->where('step', $grade_step)
+                            ->get()
+                            ->keyBy('allowance_id');
 
-                        // Update Allowances (percentage-based only; fixed ones are untouched)
+                        // Update Allowances
                         foreach (SalaryAllowanceTemplate::where('salary_structure_id', $employee->salary_structure)
                             ->whereRaw('? between grade_level_from and grade_level_to', [$employee->grade_level])
                             ->where('allowance_type', 1)->get() as $allowance) {
-                            $salary_update["A$allowance->allowance_id"] = round($basic_salary / 100 * $allowance->value);
+                            $amount = isset($stepAllowances[$allowance->allowance_id])
+                                ? $stepAllowances[$allowance->allowance_id]->value
+                                : round($basic_salary / 100 * $allowance->value);
+                            $salary_update["A$allowance->allowance_id"] = $amount;
+                            $salary_update->save();
                         }
 
-                        // Update Deductions (percentage-based only; fixed ones are untouched)
-                        // Always recalculate PAYE (D1)
-                        $paye = app(\App\DeductionCalculation::class);
-                        $salary_update['D1'] = $paye->compute_tax($basic_salary);
+                        // Update Deductions
                         foreach (SalaryDeductionTemplate::where('salary_structure_id', $employee->salary_structure)
                             ->whereRaw('? between grade_level_from and grade_level_to', [$employee->grade_level])
-                            ->where('deduction_type', 1)
-                            ->where('deduction_id', '!=', 1) // PAYE already handled above
-                            ->get() as $deduction) {
+                            ->where('deduction_type', 1)->get() as $deduction) {
                             $salary_update["D$deduction->deduction_id"] = round($basic_salary / 100 * $deduction->value);
+                            $salary_update->save();
                         }
 
                         // Recalculate Totals
@@ -375,11 +379,6 @@ class AnnualSalaryIncrement extends Component
                         $gross_pay = $total_earning;
                         $net_pay = round($gross_pay - $total_deduction, 2);
 
-                        $salary_update->gross_pay = $gross_pay;
-                        $salary_update->net_pay = $net_pay;
-                        $salary_update->gross_pay = $gross_pay;
-                        $salary_update->net_pay = $net_pay;
-
                         // Calculate Arrears
                         if ($this->arrears_months > 0) {
                             $increment_diff = $gross_pay - $old_gross_pay;
@@ -389,6 +388,10 @@ class AnnualSalaryIncrement extends Component
                             }
                         }
 
+                        $salary_update->gross_pay = $gross_pay;
+                        $salary_update->net_pay = $net_pay;
+                        $salary_update->total_allowance = $total_allowance;
+                        $salary_update->total_deduction = $total_deduction;
                         $salary_update->save();
 
                         $employee->step = $grade_step;

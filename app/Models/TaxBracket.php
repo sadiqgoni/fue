@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,10 +19,10 @@ class TaxBracket extends Model
     ];
 
     protected $casts = [
-        'tax_brackets' => 'array',
-        'reliefs' => 'array',
         'effective_date' => 'date',
-        'is_active' => 'boolean'
+        'is_active' => 'boolean',
+        'tax_brackets' => 'array',
+        'reliefs' => 'array'
     ];
 
     // Scopes
@@ -35,44 +33,71 @@ class TaxBracket extends Model
 
     public function scopeEffective($query, $date = null)
     {
-        $date = $date ?: now();
+        $date = $date ?? now();
         return $query->where('effective_date', '<=', $date)
                     ->orderBy('effective_date', 'desc');
     }
 
-    // Calculate tax for given taxable income
-    public function calculateTax($taxableIncome)
+    // Methods
+    /**
+     * Calculate tax using progressive tax brackets (like climbing stairs).
+     * Each bracket applies only to the portion of income that falls within its range.
+     * 
+     * Example: Taxable Income = ₦1,454,815.85
+     * - First ₦300k → 7% = ₦21,000 (remaining: ₦1,154,815.85)
+     * - Next ₦300k → 11% = ₦33,000 (remaining: ₦854,815.85)
+     * - Next ₦500k → 15% = ₦75,000 (remaining: ₦354,815.85)
+     * - Next ₦500k → 19% = ₦67,415.01 (only ₦354,815.85 remains, so tax that amount)
+     * Total = ₦196,415.01
+     */
+    public function calculateTax($annualTaxableIncome)
     {
+        if (!$this->tax_brackets || $annualTaxableIncome <= 0) {
+            return 0;
+        }
+
         $tax = 0;
-        $remainingIncome = $taxableIncome;
+        $remainingIncome = $annualTaxableIncome;
 
-        foreach ($this->tax_brackets as $bracket) {
-            $min = $bracket['min'] ?? 0;
-            $max = $bracket['max'] ?? null;
-            $rate = $bracket['rate'] ?? 0;
+        // Sort brackets by min to ensure correct order
+        $sortedBrackets = collect($this->tax_brackets)->sortBy('min')->values()->all();
 
+        foreach ($sortedBrackets as $bracket) {
             if ($remainingIncome <= 0) break;
 
-            if ($max === null || $remainingIncome <= $max) {
-                // Last bracket or income fits in this bracket
-                $taxableInThisBracket = $remainingIncome;
+            $min = (float)($bracket['min'] ?? 0);
+            $max = isset($bracket['max']) ? (float)$bracket['max'] : null;
+            $rate = (float)($bracket['rate'] ?? 0);
+
+            // Calculate how much of remaining income falls in this bracket
+            if ($max === null) {
+                // Last bracket (no upper limit) - tax all remaining income
+                $taxableInBracket = $remainingIncome;
             } else {
-                // Income exceeds this bracket
-                $taxableInThisBracket = $max - $min;
+                // Calculate bracket width (how much income this bracket covers)
+                $bracketWidth = $max - $min;
+                // Take the minimum of: remaining income OR bracket width
+                $taxableInBracket = min($remainingIncome, $bracketWidth);
             }
 
-            $tax += ($taxableInThisBracket * $rate / 100);
-            $remainingIncome -= $taxableInThisBracket;
+            if ($taxableInBracket > 0) {
+                $tax += $taxableInBracket * ($rate / 100);
+                $remainingIncome -= $taxableInBracket;
+            }
         }
 
         return round($tax, 2);
     }
 
-    // Get total reliefs for an employee
+    public function calculateMonthlyTax($annualTaxableIncome)
+    {
+        return round($this->calculateTax($annualTaxableIncome) / 12, 2);
+    }
+
     public function getTotalReliefs($basicSalary = 100000, $housingAllowance = 0, $transportAllowance = 0)
     {
         $defaultReliefs = [
-            'consolidated_rent_relief' => ['fixed' => 200000, 'description' => 'Fixed consolidated rent relief allowance'],
+            'consolidated_rent_relief' => ['fixed' => 200000, 'description' => 'Fixed consolidated rent relief'],
             'pension_contribution' => ['percentage' => 8.0, 'base' => 'basic_housing_transport', 'description' => '8% of basic + housing + transport'],
             'nhf_contribution' => ['percentage' => 2.5, 'base' => 'basic', 'description' => '2.5% of basic salary'],
             'nhis_contribution' => ['percentage' => 0.5, 'base' => 'basic', 'description' => '0.5% of basic salary'],
@@ -130,5 +155,22 @@ class TaxBracket extends Model
                 static::where('id', '!=', $bracket->id)->update(['is_active' => false]);
             }
         });
+    }
+
+    // Helper methods
+    public function getBracketSummary()
+    {
+        if (!$this->tax_brackets) return [];
+
+        $summary = [];
+        foreach ($this->tax_brackets as $bracket) {
+            $min = number_format($bracket['min'] ?? 0);
+            $max = $bracket['max'] ? number_format($bracket['max']) : '∞';
+            $rate = $bracket['rate'] ?? 0;
+
+            $summary[] = "₦{$min} - ₦{$max}: {$rate}%";
+        }
+
+        return $summary;
     }
 }

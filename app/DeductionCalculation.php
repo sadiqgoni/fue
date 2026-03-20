@@ -18,7 +18,6 @@ class DeductionCalculation
         $salary_structure = $employee['salary_structure'];
         $grade_level = $employee['grade_level'];
         $step = $employee['step'];
-        //        try {
         $salary = SalaryStructureTemplate::where('salary_structure_id', $salary_structure)
             ->where('grade_level', $grade_level)
             ->first();
@@ -37,12 +36,14 @@ class DeductionCalculation
                     ->where('deduction_id', $deduction->id)
                     ->first();
                 if ($deduction->id == 1) {
-                    $amount = $this->paye_calculation1($basic_salary, $statutory_deductionId);
+                    // Compute PAYE using the employee's actual stored taxable allowances
+                    // (total_allowance from salary_update minus A1/Responsibility which is non-taxable)
+                    $a1 = round((float) ($salary_update->A1 ?? 0), 2);
+                    $taxable_allow = max(0, round(($salary_update->total_allowance ?? 0) - $a1, 2));
+                    $amount = $this->compute_tax($basic_salary, $taxable_allow);
                 } elseif (UnionDeduction::where('deduction_id', $deduction->id)->exists()) {
-
                     $amount = employee_union($employee['staff_union'], $deduction_template, $basic_salary);
                 } elseif ($deduction_template != null) {
-
                     if ($deduction->deduction_type == 1) {
                         $amount = round($basic_salary / 100 * $deduction_template->value, 2);
                     } else {
@@ -64,13 +65,7 @@ class DeductionCalculation
             }
             $salary_update->total_deduction = $total;
             $salary_update->save();
-
         }
-        //        }catch (\Exception $e){
-//                dd($e);
-//        }
-
-
     }
 
     public function paye_calculation1($basic_salary, $statutory_deductionId)
@@ -109,21 +104,21 @@ class DeductionCalculation
         if ($statutory_deduction == 1) {
             $pension = round((8 / 100) * $annual_basic, 2);
             $nhf = round((2.5 / 100) * $annual_basic, 2);
-            $nhis = round((0.05 / 100) * $annual_basic, 2);
+            $nhis = 0; // NHIS not applied as separate relief
             $national_pension = 0;
             $gratuity = 0;
         } else {
             $pension = round((8 / 100) * $annual_gross, 2);
             $nhf = round((2.5 / 100) * $annual_gross, 2);
-            $nhis = round((0.05 / 100) * $annual_gross, 2);
+            $nhis = 0; // NHIS not applied as separate relief
             $national_pension = 0;
             $gratuity = 0;
         }
 
         $total_relief = round($consolidated_relief + $pension + $nhf + $nhis + $national_pension + $gratuity, 2);
         $taxable_income = round($annual_gross - $total_relief, 2);
-        //Now compute tax
-        return $this->calculate_legacy_tax($taxable_income);
+        // Apply progressive tax to already-computed annual taxable income
+        return $this->calculateTaxFromTaxableIncome($taxable_income);
     }
     public function paye_calculation2($basic_salary, $statutory_deductionId)
     {
@@ -168,155 +163,161 @@ class DeductionCalculation
         $annual_gross = round($bi * 12, 2);
         $relief = round($annual_gross * 0.2 + (16666.6666 * 12), 2);
         $taxable_income = round($annual_gross - $relief, 2);
-
-        //Now compute tax
-
-        return $this->calculate_legacy_tax($taxable_income);
-
+        // Apply progressive tax to already-computed annual taxable income
+        return $this->calculateTaxFromTaxableIncome($taxable_income);
     }
 
-    public function compute_tax($basic_salary)
+    public function compute_tax($basic_salary, $monthly_taxable_allowances = 0.0)
     {
         // Try to use dynamic tax bracket first
         try {
             $activeBracket = \App\Models\TaxBracket::active()->first();
 
             if ($activeBracket && $activeBracket->tax_brackets) {
-                // Replicate the full calculation logic from paye_calculation1 but use dynamic brackets
 
-                // Get taxable allowances (same as old system)
-                $allowances = \App\Models\Allowance::leftJoin('salary_allowance_templates', 'salary_allowance_templates.allowance_id', 'allowances.id')
-                    ->select('salary_allowance_templates.*', 'allowances.taxable', 'allowances.status')
-                    ->where('taxable', 1)
-                    ->where('status', 1)
-                    ->get();
-
-                $total_allow = 0;
-                foreach ($allowances as $allowance) {
-                    try {
-                        if ($allowance->allowance_type == 1) {
-                            $amount = round($basic_salary / 100 * $allowance->value, 2);
-                        } else {
-                            $amount = $allowance->value;
-                        }
-                        $total_allow += round($amount, 2);
-                    } catch (\Exception $e) {
-                        continue;
-                    }
-                }
-
-                // Calculate annual figures
+                // ── Annual figures ───────────────────────────────────────────
+                // Annual basic salary
                 $annual_basic = round($basic_salary * 12, 2);
-                $annual_allowance = round($total_allow * 12, 2);
-                $annual_gross = round($annual_basic + $annual_allowance, 2);
 
-                // Calculate reliefs using dynamic bracket reliefs
-                $total_relief = 0;
-                if ($activeBracket->reliefs) {
-                    foreach ($activeBracket->reliefs as $key => $relief) {
-                        if (isset($relief['fixed'])) {
-                            $total_relief += $relief['fixed'];
-                        } elseif (isset($relief['percentage'])) {
-                            $base = $relief['base'] ?? 'basic';
-                            if ($base == 'basic_housing_transport') {
-                                // For pension: basic + housing + transport
-                                // We don't have housing/transport here, so approximate with basic + allowances
-                                $base_amount = $annual_basic + $annual_allowance;
-                            } else {
-                                $base_amount = $annual_basic;
-                            }
-                            $amount = ($relief['percentage'] / 100) * $base_amount;
-                            $total_relief += round($amount, 2);
-                        }
-                    }
-                } else {
-                    // Fallback to old system reliefs
-                    $agp = round((20 / 100) * $annual_gross, 2);
-                    $consolidated_relief = 200000.00 + $agp;
-                    $pension = round((8 / 100) * $annual_basic, 2);
-                    $nhf = round((2.5 / 100) * $annual_basic, 2);
-                    $nhis = round((0.05 / 100) * $annual_basic, 2);
-                    $total_relief = round($consolidated_relief + $pension + $nhf + $nhis, 2);
-                }
+                // Annual gross = (monthly basic + monthly taxable allowances) × 12
+                // Caller must pass in the actual taxable allowances already computed
+                // for this specific employee (excluding A1 / Responsibility).
+                $annual_gross = round(($basic_salary + $monthly_taxable_allowances) * 12, 2);
 
-                // Calculate taxable income
-                $taxable_income = round($annual_gross - $total_relief, 2);
-                $taxable_income = max(0, $taxable_income); // Ensure not negative
+                // ── Pull relief settings from DB ─────────────────────────────
+                // The client stores:
+                //   consolidated_rent_relief → { fixed: 200000 }   ← ₦200k part of CRA
+                //   nhis_contribution        → { percentage: 20 }  ← % part of CRA
+                //   pension_contribution     → { percentage: 8  }
+                //   nhf_contribution         → { percentage: 2.5}
+                $reliefs = $activeBracket->reliefs ?? [];
 
-                // Apply dynamic tax brackets
+                // CRA fixed amount (default ₦200,000)
+                $cra_fixed = isset($reliefs['consolidated_rent_relief']['fixed'])
+                    ? (float) $reliefs['consolidated_rent_relief']['fixed']
+                    : 200000.00;
+
+                // CRA percentage (stored under nhis_contribution key; default 20%)
+                $cra_pct = isset($reliefs['nhis_contribution']['percentage'])
+                    ? (float) $reliefs['nhis_contribution']['percentage']
+                    : 20.0;
+
+                // Pension percentage (default 8%)
+                $pension_pct = isset($reliefs['pension_contribution']['percentage'])
+                    ? (float) $reliefs['pension_contribution']['percentage']
+                    : 8.0;
+
+                // NHF percentage (default 2.5%)
+                $nhf_pct = isset($reliefs['nhf_contribution']['percentage'])
+                    ? (float) $reliefs['nhf_contribution']['percentage']
+                    : 2.5;
+
+                // ── Apply CRA formula ────────────────────────────────────────
+                // CRA = ₦[cra_fixed] + [cra_pct]% of Annual Gross
+                $cra = round($cra_fixed + ($cra_pct / 100) * $annual_gross, 2);
+                // Pension & NHF reliefs on annual GROSS (confirmed by client Excel)
+                // Pension: 8%   × gross = ₦205,779.52 ✓
+                // NHF:     2.5% × gross = ₦64,306.10  ✓
+                // NHIS:    not applied (would double-count the ₦64k)
+                $pension_relief = round(($pension_pct / 100) * $annual_gross, 2);
+                $nhf_relief = round(($nhf_pct / 100) * $annual_gross, 2);
+
+                $total_relief = round($cra + $pension_relief + $nhf_relief, 2);
+                $taxable_income = max(0, round($annual_gross - $total_relief, 2));
+
+                // ── Apply progressive tax brackets ────────────────────────────
                 $annual_tax = $activeBracket->calculateTax($taxable_income);
                 return round($annual_tax / 12, 2);
             }
         } catch (\Exception $e) {
-            // Log error but continue with fallback
             \Illuminate\Support\Facades\Log::error('Dynamic tax calculation failed: ' . $e->getMessage());
         }
 
-        // Fallback to old hardcoded method if no active bracket or error
+        // Fallback: hardcoded CRA = ₦200,000 + 20% Gross, Pension 8%, NHF 2.5%
         return $this->paye_calculation1($basic_salary, 1);
     }
 
-    private function calculate_legacy_tax($taxable_income)
+    /**
+     * Apply the active tax bracket (or legacy brackets) to an already-computed
+     * ANNUAL taxable income. Returns the MONTHLY PAYE amount.
+     * Use this when the caller has already subtracted all reliefs.
+     */
+    private function calculateTaxFromTaxableIncome(float $taxable_income): float
     {
-        // Standard Nigeria PAYE tax bands (Finance Act 2020)
-        $tax = 0;
+        if ($taxable_income <= 0)
+            return 0.0;
 
-        // 1st 300k @ 7%
-        $band1 = 300000;
-        if ($taxable_income > $band1) {
-            $tax += $band1 * 0.07;
-            $taxable_income -= $band1;
-        } else {
-            $tax += $taxable_income * 0.07;
-            return round($tax / 12, 2);
+        try {
+            $activeBracket = \App\Models\TaxBracket::active()->first();
+            if ($activeBracket && $activeBracket->tax_brackets) {
+                $annual_tax = $activeBracket->calculateTax($taxable_income);
+                return round($annual_tax / 12, 2);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Tax bracket calculation failed: ' . $e->getMessage());
         }
 
-        // 2nd 300k @ 11%
-        $band2 = 300000;
-        if ($taxable_income > $band2) {
-            $tax += $band2 * 0.11;
-            $taxable_income -= $band2;
-        } else {
-            $tax += $taxable_income * 0.11;
-            return round($tax / 12, 2);
-        }
-
-        // 3rd 500k @ 15%
-        $band3 = 500000;
-        if ($taxable_income > $band3) {
-            $tax += $band3 * 0.15;
-            $taxable_income -= $band3;
-        } else {
-            $tax += $taxable_income * 0.15;
-            return round($tax / 12, 2);
-        }
-
-        // 4th 500k @ 19%
-        $band4 = 500000;
-        if ($taxable_income > $band4) {
-            $tax += $band4 * 0.19;
-            $taxable_income -= $band4;
-        } else {
-            $tax += $taxable_income * 0.19;
-            return round($tax / 12, 2);
-        }
-
-        // 5th 1.6M @ 21%
-        $band5 = 1600000;
-        if ($taxable_income > $band5) {
-            $tax += $band5 * 0.21;
-            $taxable_income -= $band5;
-        } else {
-            $tax += $taxable_income * 0.21;
-            return round($tax / 12, 2);
-        }
-
-        // 6th Above 3.2M @ 24%
-        $tax += $taxable_income * 0.24;
-
-        return round($tax / 12, 2);
+        // Legacy hardcoded brackets (fallback)
+        return $this->compute_tax_legacy($taxable_income);
     }
 
+
+
+
+    /**
+     * Legacy tax calculation method (old hardcoded brackets)
+     * Used as fallback when no dynamic bracket is available
+     */
+    public function compute_tax_legacy($taxable_income)
+    {
+        $tax_inc = $taxable_income;
+        $balance = $tax_inc;
+        $tax = 0;
+
+        // OLD BRACKETS (pre-2026)
+        if ($balance > 300000) {
+            $tax = number_format($tax + (7 / 100) * 300000, 2, '.', '');
+            $balance = number_format($balance - 300000, 2, '.', '');
+        } else {
+            $tax = number_format($tax + (7 / 100) * $balance, 2, '.', '');
+            return round($tax / 12, 2);
+        }
+
+        if ($balance > 300000) {
+            $tax = number_format($tax + (11 / 100) * 300000, 2, '.', '');
+            $balance = number_format($balance - 300000, 2, '.', '');
+        } else {
+            $tax = number_format($tax + (11 / 100) * $balance, 2, '.', '');
+            return round($tax / 12, 2);
+        }
+
+        if ($balance > 500000) {
+            $tax = number_format($tax + (15 / 100) * 500000, 2, '.', '');
+            $balance = number_format($balance - 500000, 2, '.', '');
+        } else {
+            $tax = number_format($tax + (15 / 100) * $balance, 2, '.', '');
+            return round($tax / 12, 2);
+        }
+
+        if ($balance > 500000) {
+            $tax = number_format($tax + (19 / 100) * 500000, 2, '.', '');
+            $balance = number_format($balance - 500000, 2, '.', '');
+        } else {
+            $tax = number_format($tax + (19 / 100) * $balance, 2, '.', '');
+            return round($tax / 12, 2);
+        }
+
+        if ($balance > 1600000) {
+            $tax = number_format($tax + (21 / 100) * 1600000, 2, '.', '');
+            $balance = number_format($balance - 1600000, 2, '.', '');
+        } else {
+            $tax = number_format($tax + (21 / 100) * $balance, 2, '.', '');
+            return round($tax / 12, 2);
+        }
+
+        $tax = $tax + (24 / 100) * $balance;
+        return round($tax / 12, 2);
+    }
     public function total_deduction($total)
     {
         return $total;

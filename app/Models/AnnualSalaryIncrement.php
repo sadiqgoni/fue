@@ -19,11 +19,8 @@ class AnnualSalaryIncrement extends Model
         'old_grade_step',
         'new_grade_step',
         'status',
+        'current_salary',
+        'new_salary',
         'arrears_months'
     ];
-
-    public function employee()
-    {
-        return $this->belongsTo(EmployeeProfile::class, 'employee_id');
-    }
 }

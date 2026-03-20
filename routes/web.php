@@ -8,6 +8,7 @@ use App\Livewire\Reports\PayrollReportCenter;
 use App\Http\Controllers\Report\ReportController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Dashboard\DashboardController;
+use App\Http\Controllers\TaxBracketController;
 use App\Livewire\Reports\EmployeeReportCenter;
 use App\Livewire\Reports\ReportForIndividual;
 use App\Livewire\Forms\AnnualSalaryIncrement;
@@ -24,11 +25,11 @@ use App\Livewire\Forms\SalaryStructure;
 use App\Livewire\Forms\Unit;
 use App\Livewire\Forms\Department;
 use App\Livewire\Forms\Bank;
-use App\Livewire\Forms\State;
-use App\Livewire\Forms\LocalGovt;
 use App\Livewire\Forms\Pfa;
 use App\Livewire\Forms\StaffUnion;
 use App\Livewire\Forms\Rank;
+use App\Livewire\Forms\State;
+use App\Livewire\Forms\LocalGovt;
 use App\Livewire\Forms\Tribe;
 use App\Livewire\Forms\Relationship;
 use App\Livewire\Forms\StaffCategory;
@@ -65,7 +66,6 @@ use App\Http\Controllers\Auth\TwoFactorAuthController;
 
 use App\Http\Controllers\Auth\TwoFASettingsController;
 
-use App\Http\Controllers\TaxBracketController;
 use App\Livewire\Pages\SalaryAnalysisChart;
 
 use App\Livewire\Pages\HelpView;
@@ -86,10 +86,7 @@ use App\Livewire\Forms\Question;
 Route::get('/',[StaffAuth::class,'login'])->name('login')->middleware('guest');
 Route::post('/',[StaffAuth::class,'postLogin']);
 
-//Route::get('/',function (){
-//    return dd(\Illuminate\Support\Facades\Hash::make(123456));
-//});
-Route::middleware(['auth','is_staff','verified','active'])->group(function(){
+Route::middleware(['auth','is_staff','verified'])->group(function(){
     Route::get('change/staff/password',[DashboardController::class,'show_pass'])->name('staff.password');
     Route::post('change/staff/password',[DashboardController::class,'post_pass']);
     Route::get('payroll/request',PayrollRequest::class)->name('payroll.request')->middleware('has_changed_pass');
@@ -123,9 +120,9 @@ Route::middleware(['auth','is_admin','passkey','2fa'])->group(function (){
         Route::get('staff/union',StaffUnion::class)->name('staff.union');
         Route::get('pfa',Pfa::class)->name('pfa');
         Route::get('bank',Bank::class)->name('bank');
+        Route::get('rank',Rank::class)->name('rank');
         Route::get('state',State::class)->name('state');
         Route::get('local/govt',LocalGovt::class)->name('local.govt');
-        Route::get('rank',Rank::class)->name('rank');
         Route::get('tribe',Tribe::class)->name('tribe');
         Route::get('relationship',Relationship::class)->name('relationship');
         Route::get('employee/type',EmployeeType::class)->name('employee.type');
@@ -163,6 +160,7 @@ Route::middleware(['auth','is_admin','passkey','2fa'])->group(function (){
     Route::get('salary/structure',SalaryStructure::class)->name('salary.structure')->middleware('can:salary_structure');
     Route::get('salary/template',SalaryTemplate::class)->name('salary.template')->middleware('can:salary_template');
     Route::get('allowance/template',AllowanceTemplate::class)->name('allowance.template')->middleware('can:allowance_template');
+    Route::get('allowance/template/step', \App\Livewire\Pages\StepAllowanceManager::class)->name('allowance.template.step')->middleware('can:allowance_template');
     Route::get('deduction/template',DeductionTemplate::class)->name('deduction.template')->middleware('can:deduction_template');
 
 
@@ -216,7 +214,7 @@ Route::get('individual/payslip/mail/{staff_number}/{month_from}/{month_to}',[Emp
 Route::get('test/',\App\Livewire\Index::class);
 Route::get('clear_cache', function () {
 
-    \Illuminate\Support\Facades\Artisan::call('view:clear');
+    \Illuminate\Support\Facades\Artisan::call('cache:clear');
 
     dd("Cache is cleared");
 

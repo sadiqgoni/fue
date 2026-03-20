@@ -11,12 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('union_deductions', function (Blueprint $table) {
-            $table->id();
-            $table->tinyInteger('deduction_id');
-            $table->tinyInteger('union_id');
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('union_deductions')) {
+            Schema::create('union_deductions', function (Blueprint $table) {
+                $table->id();
+                $table->tinyInteger('deduction_id');
+                $table->tinyInteger('union_id');
+                $table->timestamps();
+            });
+        }
     }
 
     /**

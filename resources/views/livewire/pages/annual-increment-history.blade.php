@@ -52,6 +52,7 @@
                         <th>INCREMENT
                             SALARY </th>
                         <th>STATUS</th>
+                        <th>ACTION</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -59,8 +60,6 @@
                         @php
                             $employee=\App\Models\EmployeeProfile::find($history->employee_id);
                             $salary=\App\Models\SalaryUpdate::where('employee_id',$history->employee_id)->first();
-                                        $ss=\App\Models\SalaryStructure::find($history->salary_structure)
-
                         @endphp
                         <tr>
                             <th>{{($histories->currentPage() - 1) * $histories->perPage() + $loop->index+1}}</th>
@@ -68,16 +67,25 @@
                             <td>{{$employee?$employee->staff_number:''}}</td>
                             <td>{{$employee?$employee->payroll_number:''}}</td>
                             <td>{{$employee?$employee->full_name:''}}</td>
-                            <td>{{$ss->name}} {{$history->grade_level}}/{{$history->old_grade_step}}</td>
-                            <td>{{$ss->name}} {{$history->grade_level}}/{{$history->new_grade_step}}</td>
+                            <td>{{$history->grade_level}}/{{$history->old_grade_step}}</td>
+                            <td>{{$history->grade_level}}/{{$history->new_grade_step}}</td>
                             <td>{{success_status($history->status)}}</td>
+                            <td>
+                                @if($history->status == 1)
+                                    @can('can_save')
+                                        <button type="button" class="btn btn-sm btn-warning" wire:click="confirmRevertIncrement({{ $history->id }})">Revert</button>
+                                    @endcan
+                                @else
+                                    —
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         no record
                     @endforelse
                     </tbody>
                     <tr>
-                        <td colspan="6">{{$histories->links()}}</td>
+                        <td colspan="9">{{$histories->links()}}</td>
                     </tr>
                 </table>
 
