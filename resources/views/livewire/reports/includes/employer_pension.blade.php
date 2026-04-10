@@ -1,4 +1,12 @@
 <div class="container">
+    @php
+        $hasEmployerPensionData = is_array($employer_pension)
+            ? count($employer_pension) > 0
+            : (isset($employer_pension) && $employer_pension->count() > 0);
+        $reportContext = method_exists($this, 'employerPensionContextLabel')
+            ? $this->employerPensionContextLabel()
+            : 'All PFAs';
+    @endphp
     <div class="row">
 
         <p></p>
@@ -10,14 +18,21 @@
                 <div class="panel-heading">
                     <div class="row">
                         <div class="col col-xs-6">
-                            <h3 class="panel-title">Employer Pension </h3>
+                            <h3 class="panel-title">
+                                Employer Pension
+                                @can('can_export')
+                                    <button class="btn btn-dark float-right" wire:click.prevent="employer_pension_export()">Export</button>
+                                @endcan
+                            </h3>
                         </div>
 
                     </div>
                 </div>
-                @if(!empty($employer_pension))
+                @if($hasEmployerPensionData)
                     <div class="panel-body table-responsive">
-                        <h5 style="text-align: center;padding:15px 0;margin: 0">Employer Pension  for the month of {{\Illuminate\Support\Carbon::parse($date_from)->format('F Y')}} </h5>
+                        <h5 style="text-align: center;padding:15px 0 5px;margin: 0">Employer Pension Report</h5>
+                        <p style="text-align: center;margin: 0 0 10px 0">{{$reportContext}}</p>
+                        <h6 style="text-align: center;padding:0 0 15px;margin: 0">For the month of {{\Illuminate\Support\Carbon::parse($date_from)->format('F Y')}} </h6>
                         <table style="width: 100%;border-collapse: collapse;font-size: 12px;" border="1" class="table table-striped table-bordered table-list table-sm">
                             <thead>
                             <tr>
@@ -50,6 +65,13 @@
 
                             @endforelse
                             </tbody>
+                            <tfoot>
+                            <tr>
+                                <td colspan="3"></td>
+                                <th style="text-align: right">Total</th>
+                                <th>{{number_format($employer_pension->sum('employer_pension'),2)}}</th>
+                            </tr>
+                            </tfoot>
 
                         </table>
                     </div>
@@ -58,4 +80,3 @@
         </div>
     </div>
 </div>
-

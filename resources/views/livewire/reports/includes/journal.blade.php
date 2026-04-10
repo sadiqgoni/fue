@@ -1,4 +1,9 @@
 <div class="container">
+    @php
+        $hasJournalData = is_array($journals)
+            ? count($journals) > 0
+            : (isset($journals) && $journals->count() > 0);
+    @endphp
     <div class="row">
 
         <p></p>
@@ -15,9 +20,9 @@
 
                     </div>
                 </div>
-                @if( !empty($journals))
+                @if($hasJournalData)
                     <div class="panel-body table-responsive">
-                       <h5 style="text-align: center;padding:15px 0;margin: 0">Salary Standard Journal For The Mouth Of: {{$journals[0]['salary_month']}} {{$journals[0]['salary_year']}} </h5>
+                       <h5 style="text-align: center;padding:15px 0;margin: 0">Salary Standard Journal For The Month Of: {{$journals[0]['salary_month']}} {{$journals[0]['salary_year']}} </h5>
 
                         {{--@endif--}}
                         <table style="width: 100%;border-collapse: collapse;font-size: 12px;" border="1" class="table table-striped table-bordered table-list table-sm">
@@ -38,6 +43,9 @@
                                 get();
                                 $allow_total=0;
                                 $deduct_total=0;
+                                $a=0;
+                                $sal_ar=$journals->sum('salary_areas');
+                                $sal=$journals->sum('basic_salary');
                             @endphp
                             <tr>
                                 <td>xxxx</td>
@@ -47,22 +55,20 @@
                             </tr>
                             <tr>
                                 <td>xxxx</td>
-                                <td>Salary Arears</td>
-                                <td>{{number_format($journals->sum('salary_areas'))}}</td>
+                                <td>Salary Arrears</td>
+                                <td>{{number_format($journals->sum('salary_areas'),2)}}</td>
                                 <td></td>
                             </tr>
                             @forelse($allowances as $index=>$allowance)
                                 <tr>
                                     <td>{{$allowance->code}}</td>
                                     <td style="text-transform: capitalize !important;">{{$allowance->allowance_name}}</td>
-                                    <td>{{number_format($journals->sum('A'.$index+1),2)}}</td>
+                                    <td>{{number_format($journals->sum('A'.$allowance->id),2)}}</td>
                                     <td></td>
                                 </tr>
                                 @php
 
-                                    $a=$allow_total +=$journals->sum('A'.$index+1);
-                                    $sal_ar=$journals->sum('salary_areas');
-                                    $sal=$journals->sum('basic_salary');
+                                    $a=$allow_total +=$journals->sum('A'.$allowance->id);
 
                                 @endphp
                             @empty
@@ -79,10 +85,10 @@
                                     <td>{{$deduction->code}}</td>
                                     <td style="text-transform: capitalize !important;">{{$deduction->deduction_name}}</td>
                                     <td></td>
-                                    <td>{{number_format($journals->sum('D'.$index+1),2)}}</td>
+                                    <td>{{number_format($journals->sum('D'.$deduction->id),2)}}</td>
                                 </tr>
                                 @php
-                                    $deduct_total +=$journals->sum('D'.$index+1)
+                                    $deduct_total +=$journals->sum('D'.$deduction->id)
                                 @endphp
                             @empty
 

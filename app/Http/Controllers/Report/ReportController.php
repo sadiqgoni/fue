@@ -31,6 +31,22 @@ class ReportController extends Controller
     public $total_deduct = 0;
     public $orderBy = 'id';
 
+    private function requestOrderDirection(Request $request): string
+    {
+        return strtolower((string) $request->order) === 'desc' ? 'desc' : 'asc';
+    }
+
+    private function employerPensionContextLabel(?string $pfaId): string
+    {
+        if (!$pfaId) {
+            return 'All PFAs';
+        }
+
+        $pfa = PFA::find($pfaId);
+
+        return $pfa ? 'PFA: ' . $pfa->name : 'Selected PFA';
+    }
+
 
     public function report(Request $request)
     {
@@ -1249,6 +1265,11 @@ class ReportController extends Controller
         if ($request->order_by != '') {
             $this->orderBy = $request->order_by;
         }
+
+        $direction = $this->requestOrderDirection($request);
+        $reportContext = $this->employerPensionContextLabel($request->group_by);
+        $reportScope = 'Group Report';
+
         $reports = SalaryHistory::when($request->salary_structure, function ($query, ) {
             return $query->where('salary_structure', ss(request()->salary_structure));
         })
@@ -1277,7 +1298,7 @@ class ReportController extends Controller
 
             ->whereBetween('salary_year', [Carbon::parse($request->date_from)->format('Y'), Carbon::parse($request->date_to)->format('Y')])
 
-            ->orderBy("$request->order_by", $request->order ? 'asc' : 'desc')
+            ->orderBy($this->orderBy, $direction)
             ->get();
 
         //        return view('reports.salary_journal',compact('reports'));
@@ -1287,7 +1308,12 @@ class ReportController extends Controller
             $log->user_id = $user->id;
             $log->action = "Have generated employer pension";
             $log->save();
-            $document = Pdf::loadView('reports.employer_pension', compact('reports'), ['date' => $request->date_from])
+            $document = Pdf::loadView('reports.employer_pension', [
+                'reports' => $reports,
+                'date' => $request->date_from,
+                'reportContext' => $reportContext,
+                'reportScope' => $reportScope,
+            ])
                 ->setPaper('a4', 'portrait');
 
 

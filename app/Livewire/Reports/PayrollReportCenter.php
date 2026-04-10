@@ -5,6 +5,7 @@ namespace App\Livewire\Reports;
 use App\Exports\DeductionExport;
 use App\Exports\DeductionScheduleExport;
 use App\Exports\EmployeeExport;
+use App\Exports\EmployerPensionExport;
 use App\Exports\PaymentExport;
 use App\Exports\PayrollExport;
 use App\Exports\PfaExport;
@@ -15,6 +16,7 @@ use App\Models\Deduction;
 use App\Models\Department;
 use App\Models\EmployeeProfile;
 use App\Models\EmploymentType;
+use App\Models\PFA;
 use App\Models\SalaryHistory;
 use App\Models\SalaryStructure;
 use App\Models\StaffCategory;
@@ -102,6 +104,24 @@ class PayrollReportCenter extends Component
         $this->bank_sum_reports = [];
         $this->payment_reports = [];
         $this->pfa_payment_schedules = [];
+        $this->nhis = [];
+        $this->employer_pension = [];
+    }
+
+    protected function sortDirection(): string
+    {
+        return strtolower((string) $this->orderAsc) === 'desc' ? 'desc' : 'asc';
+    }
+
+    public function employerPensionContextLabel(): string
+    {
+        if (!$this->group_by) {
+            return 'All PFAs';
+        }
+
+        $pfa = PFA::find($this->group_by);
+
+        return $pfa ? 'PFA: ' . $pfa->name : 'Selected PFA';
     }
     public function payroll()
     {
@@ -1027,7 +1047,7 @@ class PayrollReportCenter extends Component
             })
             ->whereBetween('salary_month', [Carbon::parse($this->date_from)->format('F'), Carbon::parse($this->date_to)->format('F')])
             ->whereBetween('salary_year', [Carbon::parse($this->date_from)->format('Y'), Carbon::parse($this->date_to)->format('Y')])
-            ->orderBy("$this->order_by", $this->orderAsc ? 'asc' : 'desc')
+            ->orderBy("$this->order_by", $this->sortDirection())
             ->get();
         if ($this->journals->count() > 0) {
             $this->alert('success', 'Salary Journal have been generated successfully');
@@ -1065,7 +1085,7 @@ class PayrollReportCenter extends Component
             })
             ->whereBetween('salary_month', [Carbon::parse($this->date_from)->format('F'), Carbon::parse($this->date_to)->format('F')])
             ->whereBetween('salary_year', [Carbon::parse($this->date_from)->format('Y'), Carbon::parse($this->date_to)->format('Y')])
-            ->orderBy("$this->order_by", $this->orderAsc ? 'asc' : 'desc')
+            ->orderBy("$this->order_by", $this->sortDirection())
             ->get();
         if ($this->pfa_payment_schedules->count() > 0) {
             $this->alert('success', 'PFAs  have been generated successfully');
@@ -1101,7 +1121,7 @@ class PayrollReportCenter extends Component
             })
             ->whereBetween('salary_month', [Carbon::parse($this->date_from)->format('F'), Carbon::parse($this->date_to)->format('F')])
             ->whereBetween('salary_year', [Carbon::parse($this->date_from)->format('Y'), Carbon::parse($this->date_to)->format('Y')])
-            ->orderBy("$this->order_by", $this->orderAsc ? 'asc' : 'desc')
+            ->orderBy("$this->order_by", $this->sortDirection())
             ->get();
         if ($this->pfa_payment_schedules->count() > 0) {
 
@@ -1353,7 +1373,7 @@ class PayrollReportCenter extends Component
             })
             ->whereBetween('salary_month', [Carbon::parse($this->date_from)->format('F'), Carbon::parse($this->date_to)->format('F')])
             ->whereBetween('salary_year', [Carbon::parse($this->date_from)->format('Y'), Carbon::parse($this->date_to)->format('Y')])
-            ->orderBy("$this->order_by", $this->orderAsc ? 'asc' : 'desc')
+            ->orderBy("$this->order_by", $this->sortDirection())
             ->get();
         if ($this->nhis->count() > 0) {
             $this->alert('success', 'NHIS  have been generated successfully');
@@ -1389,7 +1409,7 @@ class PayrollReportCenter extends Component
             })
             ->whereBetween('salary_month', [Carbon::parse($this->date_from)->format('F'), Carbon::parse($this->date_to)->format('F')])
             ->whereBetween('salary_year', [Carbon::parse($this->date_from)->format('Y'), Carbon::parse($this->date_to)->format('Y')])
-            ->orderBy("$this->order_by", $this->orderAsc ? 'asc' : 'desc')
+            ->orderBy("$this->order_by", $this->sortDirection())
             ->get();
         if ($this->employer_pension->count() > 0) {
 
@@ -1398,6 +1418,53 @@ class PayrollReportCenter extends Component
             $this->alert('warning', no_record(), ['timer' => 9200]);
 
         }
+    }
+
+    public function employer_pension_export()
+    {
+        $this->employer_pension = SalaryHistory::when($this->salary_structure, function ($query, ) {
+            return $query->where('salary_structure', ss($this->salary_structure));
+        })
+            ->when($this->group_by, function ($query) {
+                return $query->where('pfa_name', $this->group_by);
+            })
+            ->when($this->department, function ($query) {
+                return $query->where('department', dept($this->department));
+            })
+            ->when($this->employee_type, function ($query) {
+                return $query->where('employment_type', emp_type($this->employee_type));
+            })
+            ->when($this->staff_category, function ($query) {
+                return $query->where('staff_category', staff_cat($this->staff_category));
+            })
+            ->when($this->unit, function ($query) {
+                return $query->where('unit', $this->unit);
+            })
+            ->when($this->grade_level_from, function ($query) {
+                return $query->whereBetween('grade_level', [$this->grade_level_from, $this->grade_level_to]);
+            })
+            ->whereBetween('salary_month', [Carbon::parse($this->date_from)->format('F'), Carbon::parse($this->date_to)->format('F')])
+            ->whereBetween('salary_year', [Carbon::parse($this->date_from)->format('Y'), Carbon::parse($this->date_to)->format('Y')])
+            ->orderBy("$this->order_by", $this->sortDirection())
+            ->get();
+
+        if ($this->employer_pension->count() > 0) {
+            $this->alert('success', 'Employer pension have been exported successfully');
+
+            $name = report_file_name() . "_Employer_pension_" . Carbon::parse($this->date_from)->format('F Y');
+
+            return Excel::download(
+                new EmployerPensionExport(
+                    $this->employer_pension,
+                    $this->date_from,
+                    $this->employerPensionContextLabel(),
+                    'Group Report'
+                ),
+                $name . '.xlsx'
+            );
+        }
+
+        $this->alert('warning', no_record(), ['timer' => 9200]);
     }
 
 

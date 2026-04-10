@@ -46,22 +46,27 @@
     </style>
 </head>
 <body style="padding: 0 75px">
+@php
+    $reportContext = $reportContext ?? 'All PFAs';
+@endphp
 <div id="footer">
     <p class="page">Page </p>
 </div>
 <img src="{{public_path('storage/'.app_settings()->logo)}}" alt="" style="width: 50px;position: absolute;left: 70px">
-<h3 style="padding: 0;margin: 0;text-align: center;text-transform: uppercase">{{app_settings()->name}}</h3>
-<h4 style="padding: 0;margin: 0;text-align: center">{{address()}}</h4>
+<h3 style="padding: 0;margin: 0;text-align: center;text-transform: uppercase;font-size: 18px !important;">{{app_settings()->name}}</h3>
+<h4 style="padding: 0;margin: 0;text-align: center;font-size: 14px !important;">{{address()}}</h4>
 
-<p style="padding: 10px;margin: 0;text-align: center">Employer Pension  for the month of {{\Illuminate\Support\Carbon::parse($date)->format('F Y')}} </p>
+<p style="padding: 12px 0 4px;margin: 0;text-align: center;font-size: 17px !important;font-weight: bold;">Employer Pension Report</p>
+<p style="padding: 4px 0 0;margin: 0;text-align: center;font-size: 13px !important;">{{$reportContext}}</p>
+<p style="padding: 6px 0 10px;margin: 0;text-align: center;font-size: 15px !important;font-weight: bold;">For the month of {{\Illuminate\Support\Carbon::parse($date)->format('F Y')}} </p>
 <table style="width: 100%;border-collapse: collapse;font-size: 12px;margin-top: 25px" border="1">
     <thead>
     <tr>
-        <th>SN</th>
-        <th>Payroll No. </th>
-        <th>Staff Name </th>
-        <th>Pension Pin</th>
-        <th>Amount</th>
+        <th style="font-size: 13px !important;">SN</th>
+        <th style="font-size: 13px !important;">Payroll No. </th>
+        <th style="font-size: 13px !important;">Staff Name </th>
+        <th style="font-size: 13px !important;">Pension Pin</th>
+        <th style="font-size: 13px !important;">Amount</th>
     </tr>
     </thead>
     @php
