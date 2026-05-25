@@ -119,8 +119,13 @@ class EmployeeProfile extends Component
             'profile_picture' => 'nullable|mimes:jpg,png,jpeg|max:1024',
 
             'salary_structure' => 'required',
-            'grade_level' => 'required',
-            'step' => 'required',
+            'grade_level' => [
+                'required',
+                'integer',
+                Rule::exists('salary_structure_templates', 'grade_level')
+                    ->where('salary_structure_id', $this->salary_structure),
+            ],
+            'step' => 'required|integer',
             'account_number' => 'required|digits:10|unique:employee_profiles,account_number,' . $this->ids,
             'bank_code' => 'required|numeric',
             'bank_name' => 'nullable',
@@ -134,12 +139,12 @@ class EmployeeProfile extends Component
             'rank' => 'nullable',
             'department' => 'required',
             'date_of_retirement' => 'nullable|date',
-            'date_of_first_appointment' => 'nullable',
-            'date_of_last_promotion' => 'nullable',
+            'date_of_first_appointment' => 'nullable|date',
+            'date_of_last_promotion' => 'nullable|date',
             'post_held' => 'nullable',
             'staff_category' => 'nullable',
             'staff_union' => 'nullable',
-            'contract_termination_date' => 'nullable',
+            'contract_termination_date' => 'nullable|date',
 
 
             'gender' => 'nullable',
@@ -151,7 +156,7 @@ class EmployeeProfile extends Component
             'nationality' => 'nullable',
             'state_of_origin' => 'nullable',
             'local_government' => 'nullable',
-            'date_of_birth' => 'required',
+            'date_of_birth' => 'required|date',
             'marital_status' => 'nullable',
         ];
 
@@ -163,8 +168,33 @@ class EmployeeProfile extends Component
         'phone_number.unique' => 'the chosen phone  number exists.',
         'account_number.unique' => 'the chosen Account  number exists.',
         'bvn.unique' => 'the chosen BVN  number exists.',
+        'grade_level.integer' => 'Grade level must be a numeric grade from the selected salary structure. Put titles like Registrar/Bursar under Post Held.',
+        'grade_level.exists' => 'Selected grade level is not defined under the selected salary structure.',
+        'step.integer' => 'Step must be a numeric step from the selected grade level.',
+        'date_of_birth.date' => 'Date of birth must be a valid date.',
 
     ];
+
+    private function normalizeDateForDatabase($value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return $value;
+        }
+    }
+
+    private function normalizeDateInputs(): void
+    {
+        $this->date_of_birth = $this->normalizeDateForDatabase($this->date_of_birth);
+        $this->date_of_first_appointment = $this->normalizeDateForDatabase($this->date_of_first_appointment);
+        $this->date_of_last_promotion = $this->normalizeDateForDatabase($this->date_of_last_promotion);
+        $this->contract_termination_date = $this->normalizeDateForDatabase($this->contract_termination_date);
+    }
 
 
     public function updated($property)
@@ -199,7 +229,7 @@ class EmployeeProfile extends Component
                 'nationality' => 'nullable',
                 'state_of_origin' => 'nullable',
                 'local_government' => 'nullable',
-                'date_of_birth' => 'required',
+                'date_of_birth' => 'required|date',
                 'marital_status' => 'nullable',
             ],
             2 => [
@@ -208,17 +238,22 @@ class EmployeeProfile extends Component
                 'rank' => 'nullable',
                 'department' => 'required',
                 'date_of_retirement' => 'nullable|date',
-                'date_of_first_appointment' => 'nullable',
-                'date_of_last_promotion' => 'nullable',
+                'date_of_first_appointment' => 'nullable|date',
+                'date_of_last_promotion' => 'nullable|date',
                 'post_held' => 'nullable',
                 'staff_category' => 'nullable',
                 'staff_union' => 'nullable',
-                'contract_termination_date' => 'nullable',
+                'contract_termination_date' => 'nullable|date',
             ],
             3 => [
                 'salary_structure' => 'required',
-                'grade_level' => 'required',
-                'step' => 'required',
+                'grade_level' => [
+                    'required',
+                    'integer',
+                    Rule::exists('salary_structure_templates', 'grade_level')
+                        ->where('salary_structure_id', $this->salary_structure),
+                ],
+                'step' => 'required|integer',
                 'account_number' => 'required|digits:10|unique:employee_profiles,account_number,' . $this->ids,
                 'bank_code' => 'required',
                 'bank_name' => 'nullable',
@@ -295,6 +330,7 @@ class EmployeeProfile extends Component
     public function submit()
     {
 
+        $this->normalizeDateInputs();
         $this->validate();
         //        $this->staff_number=str_replace('-','',$this->staff_number);
 //        $this->payroll_number=str_replace('-','',$this->payroll_number);
@@ -666,6 +702,7 @@ class EmployeeProfile extends Component
     public function update($id)
     {
         try {
+            $this->normalizeDateInputs();
             $this->validate();
         } catch (\Illuminate\Validation\ValidationException $e) {
             $firstErrorField = array_key_first($e->validator->errors()->getMessages());
@@ -859,12 +896,20 @@ class EmployeeProfile extends Component
     }
     public function updatedDateOfBirth()
     {
-        $this->date_of_retirement = Carbon::parse($this->date_of_birth)->addYears(65)->format('Y-m-d');
+        try {
+            $this->date_of_retirement = Carbon::parse($this->date_of_birth)->addYears(65)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            $this->date_of_retirement = null;
+        }
     }
     public function updatedDateOfFirstAppointment()
     {
         if ($this->employment_type == 1 || $this->employment_type == 3) {
-            $this->contract_termination_date = Carbon::parse($this->date_of_first_appointment)->addYear()->format('Y-m-d');
+            try {
+                $this->contract_termination_date = Carbon::parse($this->date_of_first_appointment)->addYear()->format('Y-m-d');
+            } catch (\Throwable $e) {
+                $this->contract_termination_date = null;
+            }
 
         }
 

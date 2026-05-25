@@ -53,7 +53,7 @@
                 <tbody>
                 @forelse($salaries as $salary)
                     <tr>
-                        <th></th>
+                        <th>{{$salaries->firstItem() + $loop->index}}</th>
                         <td>{{ss($salary->salary_structure_id)}}</td>
                         <td>Grade {{$salary->grade_level}}</td>
                         <td>Step {{$salary->no_of_grade_steps}}</td>
