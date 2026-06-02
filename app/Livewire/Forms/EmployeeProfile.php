@@ -121,7 +121,6 @@ class EmployeeProfile extends Component
             'salary_structure' => 'required',
             'grade_level' => [
                 'required',
-                'integer',
                 Rule::exists('salary_structure_templates', 'grade_level')
                     ->where('salary_structure_id', $this->salary_structure),
             ],
@@ -168,7 +167,6 @@ class EmployeeProfile extends Component
         'phone_number.unique' => 'the chosen phone  number exists.',
         'account_number.unique' => 'the chosen Account  number exists.',
         'bvn.unique' => 'the chosen BVN  number exists.',
-        'grade_level.integer' => 'Grade level must be a numeric grade from the selected salary structure. Put titles like Registrar/Bursar under Post Held.',
         'grade_level.exists' => 'Selected grade level is not defined under the selected salary structure.',
         'step.integer' => 'Step must be a numeric step from the selected grade level.',
         'date_of_birth.date' => 'Date of birth must be a valid date.',
@@ -194,6 +192,47 @@ class EmployeeProfile extends Component
         $this->date_of_first_appointment = $this->normalizeDateForDatabase($this->date_of_first_appointment);
         $this->date_of_last_promotion = $this->normalizeDateForDatabase($this->date_of_last_promotion);
         $this->contract_termination_date = $this->normalizeDateForDatabase($this->contract_termination_date);
+    }
+
+    private function validateSalarySelection(): bool
+    {
+        if (!ctype_digit((string) $this->step)) {
+            $this->steps = 3;
+            $this->alert('error', 'Step must be numeric.', [
+                'timer' => 8000,
+                'position' => 'top-right',
+            ]);
+
+            return false;
+        }
+
+        $salary = SalaryStructureTemplate::where('salary_structure_id', $this->salary_structure)
+            ->where('grade_level', $this->grade_level)
+            ->first();
+
+        if (!$salary) {
+            $this->steps = 3;
+            $this->alert('error', 'Selected grade level is not defined under the selected salary structure.', [
+                'timer' => 8000,
+                'position' => 'top-right',
+            ]);
+
+            return false;
+        }
+
+        if ((int) $this->step < 1 || (int) $this->step > (int) $salary->no_of_grade_steps) {
+            $this->steps = 3;
+            $this->alert('error', 'Selected step is not defined under the selected grade level.', [
+                'timer' => 8000,
+                'position' => 'top-right',
+            ]);
+
+            return false;
+        }
+
+        $this->step = (int) $this->step;
+
+        return true;
     }
 
 
@@ -249,7 +288,6 @@ class EmployeeProfile extends Component
                 'salary_structure' => 'required',
                 'grade_level' => [
                     'required',
-                    'integer',
                     Rule::exists('salary_structure_templates', 'grade_level')
                         ->where('salary_structure_id', $this->salary_structure),
                 ],
@@ -332,6 +370,9 @@ class EmployeeProfile extends Component
 
         $this->normalizeDateInputs();
         $this->validate();
+        if (!$this->validateSalarySelection()) {
+            return;
+        }
         //        $this->staff_number=str_replace('-','',$this->staff_number);
 //        $this->payroll_number=str_replace('-','',$this->payroll_number);
         if ($this->employment_type == 1 || $this->employment_type == 3) {
@@ -704,6 +745,9 @@ class EmployeeProfile extends Component
         try {
             $this->normalizeDateInputs();
             $this->validate();
+            if (!$this->validateSalarySelection()) {
+                return;
+            }
         } catch (\Illuminate\Validation\ValidationException $e) {
             $firstErrorField = array_key_first($e->validator->errors()->getMessages());
             $this->steps = $this->getStepForField($firstErrorField);
@@ -858,6 +902,18 @@ class EmployeeProfile extends Component
             $this->bank_name = $this->bank_name['0']['bank_name'];
         }
     }
+
+    public function updatedSalaryStructure()
+    {
+        $this->grade_level = '';
+        $this->step = '';
+    }
+
+    public function updatedGradeLevel()
+    {
+        $this->step = '';
+    }
+
     public function mount()
     {
         $this->states = [];

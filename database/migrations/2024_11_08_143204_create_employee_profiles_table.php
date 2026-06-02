@@ -25,7 +25,7 @@ return new class extends Migration
             $table->date('date_of_first_appointment')->nullable();
             $table->date('date_of_last_appointment')->nullable();
             $table->string('post_held')->nullable();
-            $table->integer('grade_level');
+            $table->string('grade_level');
             $table->string('step');
             $table->string('rank');
             $table->integer('unit');
