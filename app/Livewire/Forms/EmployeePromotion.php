@@ -211,8 +211,8 @@ class EmployeePromotion extends Component
 
 
                 $salary = SalaryStructureTemplate::where('salary_structure_id', $promotion->salary_structure)->where('grade_level', $promotion->level)->first();
-                $a = SalaryAllowanceTemplate::where('salary_structure_id', $promotion->salary_structure)->whereRaw('? between grade_level_from and grade_level_to', [$promotion->level])->get();
-                $d = SalaryDeductionTemplate::where('salary_structure_id', $promotion->salary_structure)->whereRaw('? between grade_level_from and grade_level_to', [$promotion->level])->get();
+                $a = SalaryAllowanceTemplate::where('salary_structure_id', $promotion->salary_structure)->matchesGradeLevel($promotion->level)->get();
+                $d = SalaryDeductionTemplate::where('salary_structure_id', $promotion->salary_structure)->matchesGradeLevel($promotion->level)->get();
 
                 if (!empty($salary) && StaffPromotion::where('payroll_number', $employee->payroll_number)->whereNull('status')->exists()) {
                     $annual_salary = $salary["Step" . $promotion->step];
@@ -244,7 +244,7 @@ class EmployeePromotion extends Component
                                 $salary_update["D$deduction->id"] = $amount;
                             } else {
                                 $dedTemp = SalaryDeductionTemplate::where('salary_structure_id', $promotion->salary_structure)
-                                    ->whereRaw('? between grade_level_from and grade_level_to', [$promotion->level])
+                                    ->matchesGradeLevel($promotion->level)
                                     ->where('deduction_id', $deduction->id)->first();
 
                                 if (!is_null($dedTemp)) {

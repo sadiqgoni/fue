@@ -210,7 +210,7 @@ class AnnualSalaryIncrement extends Component
 
                 // Recalculate Allowances/Deductions for the OLD salary/step
                 foreach (SalaryAllowanceTemplate::where('salary_structure_id', $employee->salary_structure)
-                    ->whereRaw('? between grade_level_from and grade_level_to', [$employee->grade_level])
+                    ->matchesGradeLevel($employee->grade_level)
                     ->where('allowance_type', 1)->get() as $allowance) {
                     $amount = isset($stepAllowances[$allowance->allowance_id])
                         ? $stepAllowances[$allowance->allowance_id]->value
@@ -219,7 +219,7 @@ class AnnualSalaryIncrement extends Component
                 }
 
                 foreach (SalaryDeductionTemplate::where('salary_structure_id', $employee->salary_structure)
-                    ->whereRaw('? between grade_level_from and grade_level_to', [$employee->grade_level])
+                    ->matchesGradeLevel($employee->grade_level)
                     ->where('deduction_type', 1)->get() as $deduction) {
                     $salary_update["D$deduction->deduction_id"] = round($basic_salary / 100 * $deduction->value);
                 }
@@ -348,7 +348,7 @@ class AnnualSalaryIncrement extends Component
 
                         // Update Allowances
                         foreach (SalaryAllowanceTemplate::where('salary_structure_id', $employee->salary_structure)
-                            ->whereRaw('? between grade_level_from and grade_level_to', [$employee->grade_level])
+                            ->matchesGradeLevel($employee->grade_level)
                             ->where('allowance_type', 1)->get() as $allowance) {
                             $amount = isset($stepAllowances[$allowance->allowance_id])
                                 ? $stepAllowances[$allowance->allowance_id]->value
@@ -359,7 +359,7 @@ class AnnualSalaryIncrement extends Component
 
                         // Update Deductions
                         foreach (SalaryDeductionTemplate::where('salary_structure_id', $employee->salary_structure)
-                            ->whereRaw('? between grade_level_from and grade_level_to', [$employee->grade_level])
+                            ->matchesGradeLevel($employee->grade_level)
                             ->where('deduction_type', 1)->get() as $deduction) {
                             $salary_update["D$deduction->deduction_id"] = round($basic_salary / 100 * $deduction->value);
                             $salary_update->save();

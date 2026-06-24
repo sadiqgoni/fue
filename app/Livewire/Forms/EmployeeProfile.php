@@ -513,10 +513,10 @@ class EmployeeProfile extends Component
             ->where('grade_level', $this->grade_level)
             ->first();
         $a = SalaryAllowanceTemplate::where('salary_structure_id', $this->salary_structure)
-            ->whereRaw('? between grade_level_from and grade_level_to', [$this->grade_level])
+            ->matchesGradeLevel($this->grade_level)
             ->get();
         $d = SalaryDeductionTemplate::where('salary_structure_id', $this->salary_structure)
-            ->whereRaw('? between grade_level_from and grade_level_to', [$this->grade_level])
+            ->matchesGradeLevel($this->grade_level)
             ->get();
         if (!empty($salary)) {
             $annual_salary = $salary["Step" . $this->step];
@@ -550,7 +550,7 @@ class EmployeeProfile extends Component
                     } else {
 
                         $dedTemp = SalaryDeductionTemplate::where('salary_structure_id', $this->salary_structure)
-                            ->whereRaw('? between grade_level_from and grade_level_to', [$this->grade_level])
+                            ->matchesGradeLevel($this->grade_level)
                             ->where('deduction_id', $deduction->id)->first();
                         //check if percentage of basic
                         if (!is_null($dedTemp)) {
@@ -627,7 +627,7 @@ class EmployeeProfile extends Component
                     } else {
                         $amount = 0.00;
                         $dedTemp = SalaryDeductionTemplate::where('salary_structure_id', $this->salary_structure)
-                            ->whereRaw('? between grade_level_from and grade_level_to', [$this->grade_level])
+                            ->matchesGradeLevel($this->grade_level)
                             ->where('deduction_id', $deduction->id)->first();
                         //check if percentage of basic
                         if (!is_null($dedTemp)) {

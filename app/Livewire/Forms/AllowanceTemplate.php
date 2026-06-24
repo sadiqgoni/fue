@@ -65,22 +65,10 @@ class AllowanceTemplate extends Component
             );
         }
 
-        $data = [
-            'level_from' => (int) $this->grade_level_from,
-            'level_to' => (int) $this->grade_level_to,
-        ];
-        $exists = DB::table('salary_allowance_templates')
-            //            ->where('id', '!=', $id)
+        $exists = SalaryAllowanceTemplate::query()
             ->where('salary_structure_id', $this->salary_structure_name)
             ->where('allowance_id', $this->allowance_name)
-            ->where(function ($query) use ($data) {
-                $query->whereBetween('grade_level_from', [$data['level_from'], $data['level_to']])
-                    ->orWhereBetween('grade_level_to', [$data['level_from'], $data['level_to']])
-                    ->orWhere(function ($q) use ($data) {
-                        $q->where('grade_level_from', '<=', $data['level_from'])
-                            ->where('grade_level_to', '>=', $data['level_to']);
-                    });
-            })
+            ->overlapsGradeRange($this->grade_level_from, $this->grade_level_to)
             ->exists();
         if ($exists) {
             $this->alert('warning', 'Allowance exists with same definition');
@@ -154,6 +142,19 @@ class AllowanceTemplate extends Component
                     'regex' => "Value for percentage of basic field must be between 1-100"
                 ]
             );
+        }
+
+        $exists = SalaryAllowanceTemplate::query()
+            ->where('id', '!=', $id)
+            ->where('salary_structure_id', $this->salary_structure)
+            ->where('allowance_id', $this->allowance)
+            ->overlapsGradeRange($this->grade_level_from, $this->grade_level_to)
+            ->exists();
+
+        if ($exists) {
+            $this->alert('warning', 'Allowance exists with same definition');
+
+            return;
         }
 
         $allowance = SalaryAllowanceTemplate::find($id);

@@ -88,7 +88,7 @@ class AnnualIncrementHistory extends Component
             ->keyBy('allowance_id');
 
         foreach (SalaryAllowanceTemplate::where('salary_structure_id', $employee->salary_structure)
-            ->whereRaw('? between grade_level_from and grade_level_to', [$employee->grade_level])
+            ->matchesGradeLevel($employee->grade_level)
             ->where('allowance_type', 1)->get() as $allowance) {
             if (isset($stepAllowances[$allowance->allowance_id])) {
                 $amount = $stepAllowances[$allowance->allowance_id]->value;
@@ -99,7 +99,7 @@ class AnnualIncrementHistory extends Component
         }
         $salary_update->save();
         foreach (SalaryDeductionTemplate::where('salary_structure_id', $employee->salary_structure)
-            ->whereRaw('? between grade_level_from and grade_level_to', [$employee->grade_level])
+            ->matchesGradeLevel($employee->grade_level)
             ->where('deduction_type', 1)->get() as $deduction) {
             $salary_update["D{$deduction->deduction_id}"] = round($old_basic_salary / 100 * $deduction->value, 2);
         }

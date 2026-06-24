@@ -55,21 +55,10 @@ class DeductionTemplate extends Component
         }
 
 
-        $data=[
-            'level_from'=>$this->grade_level_from,
-            'level_to'=>$this->grade_level_to
-        ];
-        $exists = DB::table('salary_deduction_templates')
+        $exists = SalaryDeductionTemplate::query()
             ->where('salary_structure_id', $this->salary_structure)
             ->where('deduction_id', $this->deduction)
-            ->where(function ($query) use ($data) {
-                $query->whereBetween('grade_level_from', [$data['level_from'], $data['level_to']])
-                    ->orWhereBetween('grade_level_to', [$data['level_from'], $data['level_to']])
-                    ->orWhere(function ($q) use ($data) {
-                        $q->where('grade_level_from', '<=', $data['level_from'])
-                            ->where('grade_level_to', '>=', $data['level_to']);
-                    });
-            })
+            ->overlapsGradeRange($this->grade_level_from, $this->grade_level_to)
             ->exists();
 
 
@@ -181,22 +170,11 @@ class DeductionTemplate extends Component
                     'regex' => "Invalid percentage Value"
                 ]);
         }
-        $data = [
-            'level_from' => $this->grade_level_from,
-            'level_to' => $this->grade_level_to
-        ];
-        $exists = DB::table('salary_deduction_templates')
+        $exists = SalaryDeductionTemplate::query()
             ->where('id', '!=', $id)
             ->where('salary_structure_id', $this->salary_structure)
             ->where('deduction_id', $this->deduction)
-            ->where(function ($query) use ($data) {
-                $query->whereBetween('grade_level_from', [$data['level_from'], $data['level_to']])
-                    ->orWhereBetween('grade_level_to', [$data['level_from'], $data['level_to']])
-                    ->orWhere(function ($q) use ($data) {
-                        $q->where('grade_level_from', '<=', $data['level_from'])
-                            ->where('grade_level_to', '>=', $data['level_to']);
-                    });
-            })
+            ->overlapsGradeRange($this->grade_level_from, $this->grade_level_to)
             ->exists();
         if ($exists) {
             $this->alert('warning', 'Deduction exists with same definition');

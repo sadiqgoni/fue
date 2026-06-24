@@ -25,14 +25,14 @@ class DeductionCalculation
         $basic_salary = round($annual_salary / 12, 2);
 
         $deduction_templates = SalaryDeductionTemplate::where('salary_structure_id', $salary_structure)
-            ->whereRaw('? between grade_level_from and grade_level_to', [$grade_level])
+            ->matchesGradeLevel($grade_level)
             ->get();
         $deductions = Deduction::where('status', 1)->get();
         if ($salary) {
             $total_deduct = 0;
             foreach ($deductions as $key => $deduction) {
                 $deduction_template = SalaryDeductionTemplate::where('salary_structure_id', $salary_structure)
-                    ->whereRaw('? between grade_level_from and grade_level_to', [$grade_level])
+                    ->matchesGradeLevel($grade_level)
                     ->where('deduction_id', $deduction->id)
                     ->first();
                 if ($deduction->id == 1) {
