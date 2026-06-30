@@ -64,22 +64,24 @@
     @php
         $allowances=\App\Models\Allowance::get();
         $deductions=\App\Models\Deduction::get();
-        //where('code','>',0)->
-        //get();
         $allow_total=0;
         $deduct_total=0;
+        $basic_total = round($reports->sum('basic_salary'), 2);
+        $arrears_total = round($reports->sum('salary_areas'), 2);
+        $gross_total = round($reports->sum('gross_pay'), 2);
+        $net_total = round($reports->sum('net_pay'), 2);
     @endphp
 <tr>
     <td>xxxx</td>
     <td>Basic Salary</td>
-    <td>{{number_format($reports->sum('basic_salary'),2)}}</td>
+    <td>{{number_format($basic_total,2)}}</td>
     <td></td>
 </tr>
     <tr>
 
         <td>xxxx</td>
         <td>Salary Areas</td>
-        <td>{{number_format($reports->sum('salary_areas'),2)}}</td>
+        <td>{{number_format($arrears_total,2)}}</td>
         <td></td>
     </tr>
     @forelse($allowances as $index=>$allowance)
@@ -91,11 +93,7 @@
             <td></td>
         </tr>
         @php
-
             $a=$allow_total +=round($reports->sum("A$allowance->id"),2);
-            $sal_ar=round($reports->sum('salary_areas'),2);
-            $sal=round($reports->sum('basic_salary'),2);
-
         @endphp
     @empty
 
@@ -123,15 +121,15 @@
         <td>xxxx</td>
         <td>Net Pay</td>
         <td></td>
-        <td>{{number_format($reports->sum('net_pay'),2)}}</td>
+        <td>{{number_format($net_total,2)}}</td>
     </tr>
     </tbody>
     <tfoot>
     <tr>
         <th style="text-align: right !important;"></th>
 <th style="text-align: right !important;padding-right: 10px !important;">Total:</th>
-        <th style="text-align: left !important;">{{number_format($a+$sal_ar+$sal,2)}}</th>
-        <th style="text-align: left !important;">{{number_format($deduct_total+$reports->sum('net_pay'),2)}}</th>
+        <th style="text-align: left !important;">{{number_format($basic_total + $arrears_total + $allow_total,2)}}</th>
+        <th style="text-align: left !important;">{{number_format($deduct_total + $net_total,2)}}</th>
     </tr>
     </tfoot>
 </table>

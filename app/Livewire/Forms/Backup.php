@@ -10,6 +10,7 @@ use App\Exports\DeductionTemplateExport;
 use App\Exports\DepartmentExport;
 use App\Exports\EmployeeProfileExport;
 use App\Exports\EmpTypeExport;
+use App\Exports\NewSystemEmployeeImportExport;
 use App\Exports\PFAsExport;
 use App\Exports\RankExport;
 use App\Exports\SalaryHistoryExport;
@@ -357,6 +358,24 @@ class Backup extends Component
                }
 
            }
+           elseif($this->other_backup_type==15){
+               $employees=\App\Models\EmployeeProfile::all();
+               if ($employees->count() > 0){
+                   $filename="new_system_employee_import_file".now()->format('ymd_His').".xlsx";
+                   $backup->backup_type=17;
+                   $backup->backup_name=$filename;
+                   $backup->save();
+                   if ($this->backup_location==1){
+                       return Excel::store(new NewSystemEmployeeImportExport(), "$filename", 'export');
+
+                   }else{
+                       return Excel::download(new NewSystemEmployeeImportExport(), "$filename");
+                   }
+               }else{
+                   $this->alert('warning','You cannot export an empty employee record');
+               }
+
+           }
 
        }
         $user=Auth::user();
@@ -417,6 +436,10 @@ class Backup extends Component
         }
         elseif ($this->other_backup_type==14){
             $name="Deduction Data";
+
+        }
+        elseif ($this->other_backup_type==15){
+            $name="New System Employee Import";
 
         }
         $log->action="Backup $name data";

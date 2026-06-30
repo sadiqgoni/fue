@@ -1520,6 +1520,26 @@ class ReportController extends Controller
     public function download($file)
     {
         $file = ReportRepository::find($file);
+        if (!$file) {
+            abort(404);
+        }
+
+        if ((int) $file->report_type === 7) {
+            $date = Carbon::parse($file->date);
+            $reports = SalaryHistory::where('salary_month', $date->format('F'))
+                ->where('salary_year', $date->format('Y'))
+                ->get();
+
+            if ($reports->count() > 0) {
+                $document = Pdf::loadView('reports.salary_journal', compact('reports'))
+                    ->setPaper('a4', 'portrait');
+
+                $name = report_file_name() . "_Salary_journal_" . $date->format('F Y');
+
+                return $document->download($name . '.pdf');
+            }
+        }
+
         //        return response()->download(public_path('storage/'.$file->location));
         $path = $file->location;
         if (!Storage::exists($path)) {

@@ -58,6 +58,7 @@
                         <option value="12">Salary Structure Data</option>
                         <option value="13">Allowance Data</option>
                         <option value="14">Deduction Data</option>
+                        <option value="15">Export for New System</option>
                     </select>
                 </div>
 

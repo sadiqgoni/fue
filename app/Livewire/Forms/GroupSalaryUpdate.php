@@ -64,7 +64,7 @@ class GroupSalaryUpdate extends Component
             'specific_employee_ids.min' => 'Please select at least one employee for the group update.',
         ];
     }
-    protected $listeners = ['confirmed', 'canceled'];
+    protected $listeners = ['confirmed', 'canceled', 'refreshConfirmed'];
     public function updated($prop)
     {
         $this->validateOnly($prop);
@@ -114,6 +114,57 @@ class GroupSalaryUpdate extends Component
     public function confirmed()
     {
         $this->store();
+    }
+
+    public function confirmSnapshotRefresh()
+    {
+        if (empty($this->specific_employee_ids)) {
+            $this->alert('warning', 'Please select at least one employee before refreshing the salary snapshot.', [
+                'position' => 'center',
+                'timer' => 6000,
+                'toast' => false,
+            ]);
+            return;
+        }
+
+        $this->alert('question', 'Refresh salary snapshot totals for the selected employees?', [
+            'showConfirmButton' => true,
+            'showCancelButton' => true,
+            'onConfirmed' => 'refreshConfirmed',
+            'onDismissed' => 'cancelled',
+            'timer' => 90000,
+            'position' => 'center',
+            'confirmButtonText' => 'Yes',
+        ]);
+    }
+
+    public function refreshConfirmed()
+    {
+        $employees = $this->employee();
+
+        if ($employees->count() === 0) {
+            $this->alert('warning', 'There is no selected staff record to refresh.', ['timer' => 9100]);
+            return;
+        }
+
+        $count = 0;
+        foreach ($employees as $employee) {
+            $salary_update = SalaryUpdate::where('employee_id', $employee->id)->first();
+            if (!$salary_update) {
+                continue;
+            }
+
+            $this->refreshSalarySnapshot($salary_update, $employee);
+            $count++;
+        }
+
+        $this->alert('success', "Snapshot refresh completed. $count record(s) updated.", ['timer' => 9100]);
+
+        $user = Auth::user();
+        $log = new ActivityLog();
+        $log->user_id = $user->id;
+        $log->action = "Refreshed group salary snapshot for $count selected employee(s)";
+        $log->save();
     }
 
     /**
@@ -337,27 +388,9 @@ class GroupSalaryUpdate extends Component
                         $salary_update["D$this->selected_allow_deduct"] = $this->amount;
                         $salary_update->save();
                     }
-                    $total_allowance = 0;
-                    $total_deduction = 0;
-                    foreach (Allowance::all() as $allowance) {
-                        $total_allowance += round($salary_update['A' . $allowance->id], 2);
-                    }
-                    foreach (Deduction::all() as $deduction) {
-                        $total_deduction += round($salary_update['D' . $deduction->id], 2);
-                    }
                     $intp = $salary_update->net_pay;
-                    $total_earning = round($salary_update->basic_salary + $total_allowance + $salary_update->salary_arears, 2);
-                    $gross_pay = $total_earning;
-                    $net_pay = round($gross_pay - $total_deduction, 2);
-
-                    $salary_update->gross_pay = $gross_pay;
-                    $salary_update->net_pay = $net_pay;
-                    $salary_update->total_deduction = $total_deduction;
-                    $salary_update->total_allowance = $total_allowance;
-                    $nhis = (0.5 / 100) * $gross_pay;
-                    $employer_pension = (10 / 100) * $gross_pay;
-                    $salary_update->nhis = round($nhis, 2);
-                    $salary_update->employer_pension = round($employer_pension, 2);
+                    $this->refreshSalarySnapshot($salary_update, $employee);
+                    $net_pay = $salary_update->net_pay;
                     if ($net_pay < 0) {
                         $failed = [
                             'full_name' => $employee->full_name,
@@ -483,6 +516,42 @@ class GroupSalaryUpdate extends Component
             $this->departments = [];
         }
     }
+
+    private function refreshSalarySnapshot(SalaryUpdate $salary_update, $employee = null): void
+    {
+        $total_allowance = 0;
+        foreach (Allowance::all() as $allowance) {
+            $total_allowance += round((float) ($salary_update['A' . $allowance->id] ?? 0), 2);
+        }
+
+        // PAYE is driven by the employee's current taxable allowance base, so
+        // allowance changes must refresh D1 before the journal snapshot is saved.
+        if (Deduction::where('id', 1)->exists()) {
+            $paye = app(DeductionCalculation::class);
+            $a1_amount = round((float) ($salary_update->A1 ?? 0), 2);
+            $taxable_allowances = max(0, round($total_allowance - $a1_amount, 2));
+            $salary_update->D1 = $paye->compute_tax($salary_update->basic_salary, $taxable_allowances);
+        }
+
+        $total_deduction = 0;
+        foreach (Deduction::all() as $deduction) {
+            $total_deduction += round((float) ($salary_update['D' . $deduction->id] ?? 0), 2);
+        }
+
+        $gross_pay = round($salary_update->basic_salary + $total_allowance + ((float) $salary_update->salary_arears), 2);
+        $net_pay = round($gross_pay - $total_deduction, 2);
+        $nhis = (0.5 / 100) * $gross_pay;
+        $employer_pension = (10 / 100) * $gross_pay;
+
+        $salary_update->gross_pay = $gross_pay;
+        $salary_update->net_pay = $net_pay;
+        $salary_update->total_deduction = $total_deduction;
+        $salary_update->total_allowance = $total_allowance;
+        $salary_update->nhis = round($nhis, 2);
+        $salary_update->employer_pension = round($employer_pension, 2);
+        $salary_update->save();
+    }
+
     public function render()
     {
         $this->types = EmploymentType::all();

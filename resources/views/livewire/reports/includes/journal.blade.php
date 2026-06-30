@@ -39,13 +39,14 @@
                             @php
                                 $allowances=\App\Models\Allowance::all();
                                 $deductions=\App\Models\Deduction::
-                                //where('code','>',0)->
                                 get();
                                 $allow_total=0;
                                 $deduct_total=0;
                                 $a=0;
-                                $sal_ar=$journals->sum('salary_areas');
-                                $sal=$journals->sum('basic_salary');
+                                $sal_ar=round($journals->sum('salary_areas'), 2);
+                                $sal=round($journals->sum('basic_salary'), 2);
+                                $gross_total=round($journals->sum('gross_pay'), 2);
+                                $net_total=round($journals->sum('net_pay'), 2);
                             @endphp
                             <tr>
                                 <td>xxxx</td>
@@ -97,15 +98,15 @@
                                 <td>xxxx</td>
                                 <td>Net Pay</td>
                                 <td></td>
-                                <td>{{number_format($journals->sum('net_pay'),2)}}</td>
+                                <td>{{number_format($net_total,2)}}</td>
                             </tr>
                             </tbody>
                             <tfoot>
                             <tr>
                                 <th>Total</th>
                                 <td></td>
-                                <th>{{number_format($a+$sal_ar+$sal,2)}}</th>
-                                <th>{{number_format($deduct_total+$journals->sum('net_pay'),2)}}</th>
+                                <th>{{number_format($sal + $sal_ar + $allow_total,2)}}</th>
+                                <th>{{number_format($deduct_total + $net_total,2)}}</th>
                             </tr>
                             </tfoot>
                         </table>

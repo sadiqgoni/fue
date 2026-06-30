@@ -128,6 +128,10 @@
                                         wire:click.prevent="deselectAllEmployees({{ json_encode($allCandidateIds) }})">
                                         <i class="fa fa-square-o"></i> Deselect All
                                     </button>
+                                    <button type="button" class="btn btn-sm btn-outline-success ml-2"
+                                        wire:click.prevent="confirmSnapshotRefresh()">
+                                        <i class="fa fa-refresh"></i> Refresh Selected Snapshots
+                                    </button>
                                 </div>
 
                                 <div class="border rounded p-3"
