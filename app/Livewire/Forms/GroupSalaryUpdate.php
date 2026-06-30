@@ -64,7 +64,7 @@ class GroupSalaryUpdate extends Component
             'specific_employee_ids.min' => 'Please select at least one employee for the group update.',
         ];
     }
-    protected $listeners = ['confirmed', 'canceled', 'refreshConfirmed'];
+    protected $listeners = ['confirmed', 'canceled'];
     public function updated($prop)
     {
         $this->validateOnly($prop);
@@ -114,57 +114,6 @@ class GroupSalaryUpdate extends Component
     public function confirmed()
     {
         $this->store();
-    }
-
-    public function confirmSnapshotRefresh()
-    {
-        if (empty($this->specific_employee_ids)) {
-            $this->alert('warning', 'Please select at least one employee before refreshing the salary snapshot.', [
-                'position' => 'center',
-                'timer' => 6000,
-                'toast' => false,
-            ]);
-            return;
-        }
-
-        $this->alert('question', 'Refresh salary snapshot totals for the selected employees?', [
-            'showConfirmButton' => true,
-            'showCancelButton' => true,
-            'onConfirmed' => 'refreshConfirmed',
-            'onDismissed' => 'cancelled',
-            'timer' => 90000,
-            'position' => 'center',
-            'confirmButtonText' => 'Yes',
-        ]);
-    }
-
-    public function refreshConfirmed()
-    {
-        $employees = $this->employee();
-
-        if ($employees->count() === 0) {
-            $this->alert('warning', 'There is no selected staff record to refresh.', ['timer' => 9100]);
-            return;
-        }
-
-        $count = 0;
-        foreach ($employees as $employee) {
-            $salary_update = SalaryUpdate::where('employee_id', $employee->id)->first();
-            if (!$salary_update) {
-                continue;
-            }
-
-            $this->refreshSalarySnapshot($salary_update, $employee);
-            $count++;
-        }
-
-        $this->alert('success', "Snapshot refresh completed. $count record(s) updated.", ['timer' => 9100]);
-
-        $user = Auth::user();
-        $log = new ActivityLog();
-        $log->user_id = $user->id;
-        $log->action = "Refreshed group salary snapshot for $count selected employee(s)";
-        $log->save();
     }
 
     /**
