@@ -23,240 +23,82 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-
         $this->registerPolicies();
-        Gate::define('employee_setting',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(1,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
+        $permissionGates = [
+            'employee_setting' => 1,
+            'allowance' => 21,
+            'deduction' => 22,
+            'salary_structure' => 23,
+            'allowance_template' => 24,
+            'deduction_template' => 25,
+            'salary_template' => 26,
+            'monthly_update' => 31,
+            'group_update' => 32,
+            'annual_increment' => 33,
+            'loan_deduction' => 34,
+            'salary_posting' => 35,
+            'group_report' => 41,
+            'individual_report' => 42,
+            'nominal_roll' => 43,
+            'annual_inc_history' => 44,
+            'loan_dedc_history' => 45,
+            'retired_staff' => 46,
+            'backup_history' => 51,
+            'restore_history' => 52,
+            'audit_log' => 53,
+            'analytic' => 54,
+            'backup' => 61,
+            'restore' => 62,
+            'app_setting' => 63,
+            'admin_user' => 64,
+            'can_save' => 71,
+            'can_edit' => 72,
+            'can_export' => 73,
+            'can_mail' => 74,
+            'can_report' => 75,
+            'can_promote' => 76,
+            'repository' => 77,
+            'terminated_list' => 78,
+            'restore_point' => 79,
+            'help' => 80,
+        ];
 
-        Gate::define('allowance',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(21,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('deduction',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(22,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('salary_structure',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(23,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('allowance_template',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(24,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('deduction_template',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(25,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('salary_template',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(26,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
+        foreach ($permissionGates as $ability => $code) {
+            Gate::define($ability, fn (User $user) => $this->userHasPermission($user, $code));
+        }
 
-        Gate::define('monthly_update',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(31,$decode_permission) || $user->id==1){
-                return true;
-            }
+        Gate::define('can_admin', function (User $user) {
+            return $user->role != 1;
         });
-        Gate::define('group_update',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(32,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('annual_increment',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(33,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('loan_deduction',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(34,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('salary_posting',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(35,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
+    }
 
-        Gate::define('group_report',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(41,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('individual_report',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(42,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('nominal_roll',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(43,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('annual_inc_history',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(44,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('loan_dedc_history',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(45,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('retired_staff',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(46,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
+    private function userHasPermission(User $user, int $code): bool
+    {
+        if ($user->id == 1) {
+            return true;
+        }
 
-        Gate::define('backup_history',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(51,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('restore_history',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(52,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('audit_log',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(53,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('analytic',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(54,$decode_permission)  || $user->id==1){
-                return true;
-            }
-        });
+        $permissions = $this->normalizePermissions($user->permission);
 
-        Gate::define('backup',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(61,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('restore',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(62,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('app_setting',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(63,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('admin_user',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(64,$decode_permission)  || $user->id==1){
-                return true;
-            }
-        });
+        return in_array((string) $code, $permissions, true) || in_array($code, $permissions, true);
+    }
 
+    private function normalizePermissions($rawPermission): array
+    {
+        if (is_array($rawPermission)) {
+            return $rawPermission;
+        }
 
-        Gate::define('can_save',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(71,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('can_edit',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(72,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('can_export',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(73,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('can_mail',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(74,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('can_report',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(75,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('can_promote',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(76,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('repository',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(77,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('terminated_list',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(78,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('restore_point',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(79,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('help',function (User $user){
-            $decode_permission=json_decode($user->permission);
-            if (in_array(80,$decode_permission) || $user->id==1){
-                return true;
-            }
-        });
-        Gate::define('can_admin',function (User $user){
-          if ($user->role !=1){
-              return true;
-          }
-        });
+        if (is_numeric($rawPermission) || is_int($rawPermission)) {
+            return [];
+        }
 
+        if (!is_string($rawPermission) || trim($rawPermission) === '') {
+            return [];
+        }
 
+        $decoded = json_decode($rawPermission, true);
 
-
-        //
+        return is_array($decoded) ? $decoded : [];
     }
 }

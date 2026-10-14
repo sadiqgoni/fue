@@ -61,10 +61,11 @@ class EmployeePromotion extends Component
 //        $promotionObj->staff_number=$this->staff_number;
 //        $promotionObj->status=$this->status;
         $promotionObj->arrears_months = $this->arrears_months;
+        $promotionObj->type = StaffPromotion::detectType($this->payroll_number, $this->salary_structure);
         $promotionObj->save();
         $this->clear();
 
-        $this->alert('success', 'Staff Promotion have been successfully added', ['timer' => 9000]);
+        $this->alert('success', 'Staff Promotion/Conversion have been successfully added', ['timer' => 9000]);
 
     }
     public function clear()
@@ -121,8 +122,9 @@ class EmployeePromotion extends Component
 //        $promotionObj->staff_number=$this->staff_number;
         $promotionObj->status = $this->status;
         $promotionObj->arrears_months = $this->arrears_months;
+        $promotionObj->type = StaffPromotion::detectType($this->payroll_number, $this->salary_structure);
         $promotionObj->save();
-        $this->alert('success', 'Staff Promotion have been successfully updated', ['timer' => 9000]);
+        $this->alert('success', 'Staff Promotion/Conversion have been successfully updated', ['timer' => 9000]);
         $this->close();
     }
     public function deleteId($id)
@@ -186,7 +188,7 @@ class EmployeePromotion extends Component
     {
         $this->ledger_fails = [];
 
-        $this->alert('warning', 'Are you sure you want promote these staffs', [
+        $this->alert('warning', 'Are you sure you want to promote/convert these staffs', [
             'showConfirmButton' => true,
             'onConfirmed' => 'confirm',
             'showCancelButton' => true,
@@ -197,10 +199,12 @@ class EmployeePromotion extends Component
 
     public function confirm()
     {
-        $name = "Staff Promotion";
+        $name = "Staff Promotion/Conversion";
         backup_es($name);
 
-        $promotions = StaffPromotion::all();
+        // Only pending records; already posted ones must not be applied again
+        $promotions = StaffPromotion::whereNull('status')->get();
+        $posted = 0;
         $this->ledger_fails = array();
 
         foreach ($promotions as $promotion) {
@@ -222,11 +226,23 @@ class EmployeePromotion extends Component
                     if (SalaryUpdate::where('employee_id', $employee->id)->exists()) {
                         $salary_update = SalaryUpdate::where('employee_id', $employee->id)->first();
                         $old_gross = $salary_update->gross_pay; // Capture OLD gross pay
+
+                        // Conversion = staff moving to a different salary structure (e.g. CONPCASS -> CONUASS).
+                        // Decided at posting time so it reflects the employee's structure right now.
+                        $is_conversion = (string) $employee->salary_structure !== (string) $promotion->salary_structure;
+                        if ($is_conversion) {
+                            $this->clearOldStructureAllowances($salary_update, $employee, $a);
+                        }
+
                         $total_allow = 0;
                         foreach ($a as $key => $allow) {
                             if ($allow->allowance_type == 1) {
                                 // Percentage-based: recalculate against new basic salary
                                 $amount = round($basic_salary / 100 * $allow->value, 2);
+                                $salary_update["A$allow->allowance_id"] = $amount;
+                            } elseif ($is_conversion) {
+                                // Conversion: fixed allowances come from the new structure's template
+                                $amount = $allow->value;
                                 $salary_update["A$allow->allowance_id"] = $amount;
                             } else {
                                 // Fixed allowance (e.g. Responsibility Allowance): DO NOT change it
@@ -248,9 +264,11 @@ class EmployeePromotion extends Component
                                     ->where('deduction_id', $deduction->id)->first();
 
                                 if (!is_null($dedTemp)) {
-                                    if ($dedTemp->deduction_type == 1) {
-                                        // Percentage-based: recalculate
-                                        $amount = round($basic_salary / 100 * $dedTemp->value, 2);
+                                    if ($dedTemp->deduction_type == 1 || $is_conversion) {
+                                        // Percentage-based: recalculate. Conversion: fixed values come from the new template
+                                        $amount = $dedTemp->deduction_type == 1
+                                            ? round($basic_salary / 100 * $dedTemp->value, 2)
+                                            : $dedTemp->value;
                                         // Check pension
                                         if ($dedTemp->deduction_id == 2 || $dedTemp->deduction_id == 3) {
                                             if ($employee->pfa_name == 10) {
@@ -311,8 +329,10 @@ class EmployeePromotion extends Component
                         }
 
                         $salary_update->save();
+                        $promotion->type = $is_conversion ? 'conversion' : 'promotion';
                         $promotion->status = 1;
                         $promotion->save();
+                        $posted++;
                         $this->alert('success', 'Record have been successfully posted to ledger');
 
                     }
@@ -335,8 +355,27 @@ class EmployeePromotion extends Component
         $user = Auth::user();
         $log = new ActivityLog();
         $log->user_id = $user->id;
-        $log->action = "Promoted " . StaffPromotion::get()->count() . " staffs";
+        $log->action = "Promoted/converted " . $posted . " staffs";
         $log->save();
+    }
+
+    /**
+     * When a staff moves to a new salary structure, allowances that came from the old structure's
+     * template (and are not in the new one) no longer apply, so zero them. Individually assigned
+     * allowances are not in any template and are kept. Deductions are left alone: statutory ones
+     * (NHF, pension) still apply and are recalculated if the new structure's template defines them.
+     */
+    private function clearOldStructureAllowances(SalaryUpdate $salary_update, $employee, $newAllowances): void
+    {
+        $newAllowanceIds = $newAllowances->pluck('allowance_id')->all();
+
+        $oldAllowances = SalaryAllowanceTemplate::where('salary_structure_id', $employee->salary_structure)
+            ->matchesGradeLevel($employee->grade_level)->get();
+        foreach ($oldAllowances as $allow) {
+            if (!in_array($allow->allowance_id, $newAllowanceIds)) {
+                $salary_update["A$allow->allowance_id"] = 0;
+            }
+        }
     }
 
     public function clear_record()

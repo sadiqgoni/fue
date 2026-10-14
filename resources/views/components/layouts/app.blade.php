@@ -13,7 +13,9 @@
 @include('sweetalert::alert')
 @include('layouts.partials.header')
 @auth
-    @include('layouts.partials.sidebar')
+    @if(auth()->user()->role != 1)
+        @include('layouts.partials.sidebar')
+    @endif
 
 @endauth
 @yield('help')

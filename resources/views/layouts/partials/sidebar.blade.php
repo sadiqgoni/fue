@@ -252,7 +252,7 @@
                                 @can('group_update')<a class="dropdown-item" href="{{route('group-salary-update')}}">Group
                                 update</a>@endcan
                                 @can('annual_increment')<a class="dropdown-item" href="{{route('employee.promotion')}}">Staff
-                                Promotion</a>@endcan
+                                Promotion / Conversion</a>@endcan
                                 @can('annual_increment')<a class="dropdown-item"
                                 href="{{route('staff.annual.salary.increment')}}">Annual increment</a>@endcan
                                 @can('loan_deduction')<a class="dropdown-item" href="{{route('deduction.countdown')}}">Loan
@@ -431,7 +431,7 @@
                                 <div class="sidebar-sub-menu">
                                     @can('monthly_update')<a class="sidebar-sub-item {{ request()->routeIs('salary.update.center') ? 'sidebar-sub-active' : '' }}" href="{{route('salary.update.center')}}">Monthly Update</a>@endcan
                                     @can('group_update')<a class="sidebar-sub-item {{ request()->routeIs('group-salary-update') ? 'sidebar-sub-active' : '' }}" href="{{route('group-salary-update')}}">Group Update</a>@endcan
-                                    @can('can_promote')<a class="sidebar-sub-item {{ request()->routeIs('employee.promotion') ? 'sidebar-sub-active' : '' }}" href="{{route('employee.promotion')}}">Staff Promotion</a>@endcan
+                                    @can('can_promote')<a class="sidebar-sub-item {{ request()->routeIs('employee.promotion') ? 'sidebar-sub-active' : '' }}" href="{{route('employee.promotion')}}">Staff Promotion / Conversion</a>@endcan
                                     @can('annual_increment')<a class="sidebar-sub-item {{ request()->routeIs('staff.annual.salary.increment') ? 'sidebar-sub-active' : '' }}" href="{{route('staff.annual.salary.increment')}}">Annual Increment</a>@endcan
                                     @can('loan_deduction')<a class="sidebar-sub-item {{ request()->routeIs('deduction.countdown') ? 'sidebar-sub-active' : '' }}" href="{{route('deduction.countdown')}}">Loan Deduction</a>@endcan
                                     @can('salary_posting')<a class="sidebar-sub-item {{ request()->routeIs('salary.ledger.posting') ? 'sidebar-sub-active' : '' }}" href="{{route('salary.ledger.posting')}}">Salary Posting</a>@endcan
@@ -586,7 +586,7 @@
                         @can('group_update')<a class="dropdown-item" href="{{route('group-salary-update')}}">Group
                         update</a>@endcan
                         @can('can_promote')<a class="dropdown-item" href="{{route('employee.promotion')}}">Staff
-                        Promotion</a>@endcan
+                        Promotion / Conversion</a>@endcan
                         @can('annual_increment')<a class="dropdown-item"
                         href="{{route('staff.annual.salary.increment')}}">Annual increment</a>@endcan
                         @can('loan_deduction')<a class="dropdown-item" href="{{route('deduction.countdown')}}">Loan
