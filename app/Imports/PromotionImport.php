@@ -3,6 +3,7 @@
 namespace App\Imports;
 
 use App\Models\SalaryStructure;
+use App\Models\SalaryStructureTemplate;
 use App\Models\StaffPromotion;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Concerns\Importable;
@@ -36,6 +37,7 @@ class PromotionImport implements ToModel, WithHeadingRow, WithBatchInserts, With
             'salary_structure'=>$ss->id,
             'level'=>$row['grade_level'],
             'step'=>$row['step'],
+            'arrears_months'=>is_numeric($row['arrears_months'] ?? null) ? (int) $row['arrears_months'] : 0,
             'type'=>StaffPromotion::detectType($row['payroll_number'], $ss->id),
         ]);
     }
@@ -71,6 +73,37 @@ class PromotionImport implements ToModel, WithHeadingRow, WithBatchInserts, With
 
 
 
+    // Reject rows whose grade level / step has no salary in the new structure's template,
+    // so problems show at upload time instead of after posting.
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            foreach ($validator->getData() as $index => $row) {
+                if (!is_array($row) || $validator->errors()->has("$index.salary_structure") || $validator->errors()->has("$index.step") || $validator->errors()->has("$index.grade_level")) {
+                    continue;
+                }
+                $ss = self::findStructure($row['salary_structure'] ?? '');
+                $level = trim((string) ($row['grade_level'] ?? ''));
+                $step = trim((string) ($row['step'] ?? ''));
+                if (!$ss || $level === '' || $step === '') {
+                    continue;
+                }
+
+                $template = SalaryStructureTemplate::where('salary_structure_id', $ss->id)
+                    ->where('grade_level', is_numeric($level) ? (int) $level : $level)
+                    ->first();
+                if (!$template) {
+                    $validator->errors()->add("$index.grade_level", "$ss->name grade level $level is not defined in the salary template");
+                    continue;
+                }
+                $amount = ctype_digit($step) && (int) $step >= 1 && (int) $step <= 20 ? $template['Step' . (int) $step] : null;
+                if (!$amount || (float) $amount <= 0) {
+                    $validator->errors()->add("$index.step", "$ss->name grade level $level step $step has no salary in the salary template");
+                }
+            }
+        });
+    }
+
     public function batchSize(): int
     {
         return 100;
@@ -86,6 +119,7 @@ class PromotionImport implements ToModel, WithHeadingRow, WithBatchInserts, With
             'salary_structure'=>'required|exists:salary_structures,name',
             'grade_level'=>'required',
             'step'=>'required|integer|min:1',
+            'arrears_months'=>'nullable|numeric|min:0',
 //            'payroll_number' => ['required',unique],
             // Above is alias for as it always validates in batches
 //            '*.1' => Rule::in(['patrick@maatwebsite.nl']),

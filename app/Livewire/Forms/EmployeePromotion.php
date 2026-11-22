@@ -170,7 +170,17 @@ class EmployeePromotion extends Component
         //        Excel::import(new PromotionImport, $this->importFilePath);
 
         $import = new PromotionImport();
-        $import->import($this->importFilePath);
+        try {
+            $import->import($this->importFilePath);
+        } catch (\Throwable $e) {
+            // Corrupted / unreadable / wrongly formatted file: tell the user instead of crashing
+            \Illuminate\Support\Facades\Log::warning('Promotion upload failed: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Storage::delete($this->importFilePath);
+            $this->reset('importFile');
+            $this->upload_errors = [];
+            $this->alert('error', 'The file could not be read. It may be corrupted or not in the sample format. Please download the sample file, fill it in again and re-upload.', ['timer' => 8000]);
+            return;
+        }
         $this->upload_errors = $import->failures();
         //        dd($import->failures()->collect());
         $failure_array = array();
@@ -230,8 +240,18 @@ class EmployeePromotion extends Component
                         // Conversion = staff moving to a different salary structure (e.g. CONPCASS -> CONUASS).
                         // Decided at posting time so it reflects the employee's structure right now.
                         $is_conversion = (string) $employee->salary_structure !== (string) $promotion->salary_structure;
+                        $templatedDeductionIds = [];
                         if ($is_conversion) {
-                            $this->clearOldStructureAllowances($salary_update, $employee, $a);
+                            // Conversion: wipe every former allowance; the new template re-assigns what applies
+                            $salaryUpdateColumns = \Illuminate\Support\Facades\Schema::getColumnListing('salary_updates');
+                            foreach (Allowance::pluck('id') as $allowanceId) {
+                                if (in_array("A$allowanceId", $salaryUpdateColumns)) {
+                                    $salary_update["A$allowanceId"] = 0;
+                                }
+                            }
+                            // Deductions defined in any structure's template are structure-specific.
+                            // Those not in the new template are cleared; deductions in no template are kept.
+                            $templatedDeductionIds = SalaryDeductionTemplate::distinct()->pluck('deduction_id')->all();
                         }
 
                         $total_allow = 0;
@@ -286,8 +306,11 @@ class EmployeePromotion extends Component
                                         // Fixed deduction in template: preserve existing employee value, don't overwrite
                                         $amount = $salary_update["D$deduction->id"] ?? 0;
                                     }
+                                } elseif ($is_conversion && in_array($deduction->id, $templatedDeductionIds)) {
+                                    // Belonged to another structure's template, not the new one
+                                    $salary_update["D$deduction->id"] = 0;
                                 } else {
-                                    // Deduction not in template: preserve existing employee value
+                                    // Deduction not in any template: preserve existing employee value
                                     $amount = $salary_update["D$deduction->id"] ?? 0;
                                 }
                             }
