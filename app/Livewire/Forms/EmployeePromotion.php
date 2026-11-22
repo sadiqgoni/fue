@@ -26,6 +26,7 @@ class EmployeePromotion extends Component
 {
     public $search, $perpage;
     public $record = true, $create, $edit, $ids;
+    public $revertPromotionId = null;
     public $payroll_number, $salary_structure, $level, $ledger_fails, $step, $staff_number, $staff_name, $status, $importFilePath, $importFile, $file_name, $arrears_months;
     use LivewireAlert, WithFileUploads, WithPagination, WithoutUrlPagination;
     public $upload_errors;
@@ -237,6 +238,12 @@ class EmployeePromotion extends Component
                         $salary_update = SalaryUpdate::where('employee_id', $employee->id)->first();
                         $old_gross = $salary_update->gross_pay; // Capture OLD gross pay
 
+                        // Store previous grade/step/structure so the posting can be reverted
+                        $promotion->old_grade_level = $employee->grade_level;
+                        $promotion->old_step = $employee->step;
+                        $promotion->old_salary_structure = (string) $employee->salary_structure;
+                        $promotion->save();
+
                         // Conversion = staff moving to a different salary structure (e.g. CONPCASS -> CONUASS).
                         // Decided at posting time so it reflects the employee's structure right now.
                         $is_conversion = (string) $employee->salary_structure !== (string) $promotion->salary_structure;
@@ -399,6 +406,123 @@ class EmployeePromotion extends Component
                 $salary_update["A$allow->allowance_id"] = 0;
             }
         }
+    }
+
+    /**
+     * Revert a posted promotion/conversion: restore the staff's previous grade, step, salary structure and salary.
+     */
+    public function confirmRevertPromotion(int $id): void
+    {
+        $this->revertPromotionId = $id;
+        $this->alert('question', 'Revert this promotion/conversion? Employee will be restored to previous grade, step, salary structure and salary.', [
+            'showConfirmButton' => true,
+            'showCancelButton' => true,
+            'onConfirmed' => 'revertPromotion',
+            'timer' => 90000,
+            'position' => 'center',
+            'confirmButtonText' => 'Yes, revert',
+        ]);
+    }
+
+    public function revertPromotion(): void
+    {
+        $id = $this->revertPromotionId;
+        $this->revertPromotionId = null;
+        if (!$id) {
+            return;
+        }
+        $promotion = StaffPromotion::where('id', $id)->where('status', 1)->first();
+        if (!$promotion || $promotion->old_grade_level === null || $promotion->old_step === null) {
+            $this->alert('warning', 'Record not found or cannot be reverted (no previous grade/step stored).', ['timer' => 5000]);
+            return;
+        }
+        $employee = \App\Models\EmployeeProfile::where('payroll_number', $promotion->payroll_number)->first();
+        $salary_update = $employee ? SalaryUpdate::where('employee_id', $employee->id)->first() : null;
+        if (!$employee || !$salary_update) {
+            $this->alert('warning', 'Employee or salary record not found.', ['timer' => 5000]);
+            return;
+        }
+        $old_ss = $promotion->old_salary_structure;
+        $old_level = $promotion->old_grade_level;
+        $old_step = $promotion->old_step;
+        $salary = SalaryStructureTemplate::where('salary_structure_id', $old_ss)->where('grade_level', $old_level)->first();
+        if (!$salary) {
+            $this->alert('warning', 'Salary template not found for previous grade/step.', ['timer' => 5000]);
+            return;
+        }
+        $basic_salary = round(($salary['Step' . $old_step] ?? 0) / 12, 2);
+        $a = SalaryAllowanceTemplate::where('salary_structure_id', $old_ss)->matchesGradeLevel($old_level)->get();
+
+        $is_conversion_revert = (string) $old_ss !== (string) $employee->salary_structure;
+        $templatedDeductionIds = [];
+        if ($is_conversion_revert) {
+            // Reverting a conversion: wipe allowances of the structure being left, the old template re-assigns its own
+            $salaryUpdateColumns = \Illuminate\Support\Facades\Schema::getColumnListing('salary_updates');
+            foreach (Allowance::pluck('id') as $allowanceId) {
+                if (in_array("A$allowanceId", $salaryUpdateColumns)) {
+                    $salary_update["A$allowanceId"] = 0;
+                }
+            }
+            $templatedDeductionIds = SalaryDeductionTemplate::distinct()->pluck('deduction_id')->all();
+        }
+        $total_allow = 0;
+        foreach ($a as $allow) {
+            $amount = $allow->allowance_type == 1
+                ? round($basic_salary / 100 * $allow->value, 2)
+                : $allow->value;
+            $salary_update['A' . $allow->allowance_id] = $amount;
+        }
+        $salaryUpdateColumns = $salaryUpdateColumns ?? \Illuminate\Support\Facades\Schema::getColumnListing('salary_updates');
+        foreach (Allowance::pluck('id') as $allowanceId) {
+            if (in_array("A$allowanceId", $salaryUpdateColumns)) {
+                $total_allow += round($salary_update["A$allowanceId"] ?? 0, 2);
+            }
+        }
+
+        $total_deduct = 0;
+        foreach (Deduction::where('status', 1)->get() as $deduction) {
+            if ($deduction->id == 1) {
+                $amount = app(DeductionCalculation::class)->compute_tax($basic_salary);
+            } else {
+                $dedTemp = SalaryDeductionTemplate::where('salary_structure_id', $old_ss)
+                    ->matchesGradeLevel($old_level)
+                    ->where('deduction_id', $deduction->id)->first();
+                if (!is_null($dedTemp)) {
+                    $amount = $dedTemp->deduction_type == 1
+                        ? round($basic_salary / 100 * $dedTemp->value, 2)
+                        : $dedTemp->value;
+                    if ($dedTemp->deduction_id == 2 || $dedTemp->deduction_id == 3) {
+                        if ($employee->pfa_name == 10) {
+                            $amount = 0.00;
+                        }
+                    } elseif (UnionDeduction::where('deduction_id', $dedTemp->deduction_id)->exists()) {
+                        if (!UnionDeduction::where('deduction_id', $dedTemp->deduction_id)->where('union_id', $employee->staff_union)->exists()) {
+                            $amount = 0.00;
+                        }
+                    }
+                } elseif ($is_conversion_revert && in_array($deduction->id, $templatedDeductionIds)) {
+                    $amount = 0;
+                } else {
+                    $amount = $salary_update['D' . $deduction->id] ?? 0;
+                }
+            }
+            $salary_update['D' . $deduction->id] = $amount;
+            $total_deduct += round($amount, 2);
+        }
+
+        $employee->grade_level = $old_level;
+        $employee->step = $old_step;
+        $employee->salary_structure = $old_ss;
+        $employee->save();
+        $salary_update->basic_salary = $basic_salary;
+        $salary_update->total_allowance = $total_allow;
+        $salary_update->total_deduction = $total_deduct;
+        $salary_update->gross_pay = round($basic_salary + $total_allow, 2);
+        $salary_update->net_pay = round($salary_update->gross_pay - $total_deduct, 2);
+        $salary_update->save();
+        $promotion->status = 2; // Reverted
+        $promotion->save();
+        $this->alert('success', 'Reverted successfully.');
     }
 
     public function clear_record()
