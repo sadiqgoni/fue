@@ -19,7 +19,7 @@ $allowance=App\Models\SalaryHistory::all() ;
     //        $allowance=\App\Models\Allowance::find($paySlip);
     //        dd($allowance)
     ?>
-    <img src="{{asset('storage/'.app_settings()->logo)}}" alt="" style="width: 50px;position: absolute;right: 70px">
+    <img src="{{report_logo_path()}}" alt="" style="width: 50px;position: absolute;right: 70px">
     <h3 style="padding: 0;margin: 0;text-align: center;text-transform: uppercase">{{app_settings()->name}}</h3>
     <h4 style="padding: 0;margin: 0;text-align: center">{{address()}}</h4>
     <br>

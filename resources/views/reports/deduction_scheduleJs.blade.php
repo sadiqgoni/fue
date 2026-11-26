@@ -51,7 +51,7 @@
 <body onload="window.print()">
 
 <div id="header" class="header">
-    <img src="{{asset('storage/'.logo())}}" alt="" style="width: 40px;position: absolute;left: 80px">
+    <img src="{{report_logo_url()}}" alt="" style="width: 40px;position: absolute;left: 80px">
     <h3 style="padding: 0;margin: 0;text-align: center;text-transform: uppercase">{{app_settings()->name}}</h3>
     <h4 style="padding: 0;margin: 0;text-align: center">{{address()}}</h4>
     <span style="position: absolute;right:100px;margin-top: 20px;margin-bottom: 0px " >Month: {{\Illuminate\Support\Carbon::parse($date_from)->format('F Y')}}</span>

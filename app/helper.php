@@ -263,6 +263,23 @@ function logo()
     return env('App_Logo');
 }
 
+// Logo for reports: the uploaded institution logo if it exists on disk, otherwise the bundled default.
+// Does not rely on env(), which returns null once the config is cached.
+function report_logo_path()
+{
+    $settings = app_settings();
+    $uploaded = is_object($settings) ? ($settings->logo ?? null) : null;
+    if ($uploaded && is_file(public_path('storage/' . $uploaded))) {
+        return public_path('storage/' . $uploaded);
+    }
+    return public_path('assets/img/logo.jpg');
+}
+
+function report_logo_url()
+{
+    return asset(ltrim(str_replace(public_path(), '', report_logo_path()), '/'));
+}
+
 function allowance_status($id){
     if($id==0){
         return "Discontinue";

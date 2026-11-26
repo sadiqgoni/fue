@@ -26,7 +26,7 @@
 <div id="footer">
     <p class="page">Page </p>
 </div>
-<img src="{{public_path(logo())}}" alt="" style="width: 50px;position: absolute;right: 50px">
+<img src="{{report_logo_path()}}" alt="" style="width: 50px;position: absolute;right: 50px">
 <h3 style="padding: 0;margin: 0;text-align: center;text-transform: uppercase">{{config('app.name')}}</h3>
 <h4 style="padding: 0;margin: 0;text-align: center">{{address()}}</h4>
 @if($reports->count()>0)
